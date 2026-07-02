@@ -37,7 +37,7 @@ Live-превью в браузере          Server action → ElevenLabs API
 - Форма добавления сообщения
 - **Без Remotion, без ElevenLabs, без бэкенда**
 
-### Этап 2 — Темизация и аватарки ⬜
+### Этап 2 — Темизация и аватарки ✅
 - Объект тем (цвета/шрифты/border-radius): iMessage light/dark, Instagram DM
 - Селектор темы в UI
 - Загрузка аватарок (input file → base64, без бэкенда)

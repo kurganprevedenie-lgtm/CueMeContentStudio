@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { XIcon } from "lucide-react";
 import { useChatStore } from "@cueme/shared";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,8 +17,26 @@ export function MessageForm() {
   const [text, setText] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [side, setSide] = useState<"left" | "right">("left");
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const canSubmit = sender.trim().length > 0 && text.trim().length > 0;
+
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setAvatarUrl("");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () =>
+      setAvatarUrl(typeof reader.result === "string" ? reader.result : "");
+    reader.readAsDataURL(file);
+  };
+
+  const clearAvatar = () => {
+    setAvatarUrl("");
+    if (avatarInputRef.current) avatarInputRef.current.value = "";
+  };
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -25,7 +45,7 @@ export function MessageForm() {
       sender: sender.trim(),
       text: text.trim(),
       side,
-      avatarUrl: avatarUrl.trim() || undefined,
+      avatarUrl: avatarUrl || undefined,
     });
     setText("");
   };
@@ -57,14 +77,36 @@ export function MessageForm() {
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="avatarUrl">Аватар (URL, необязательно)</Label>
-            <Input
-              id="avatarUrl"
-              type="url"
-              value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-              placeholder="https://…"
-            />
+            <Label htmlFor="avatar">Аватарка (необязательно)</Label>
+            <div className="flex items-center gap-2">
+              <Avatar size="default">
+                {avatarUrl ? (
+                  <AvatarImage src={avatarUrl} alt="Превью аватарки" />
+                ) : null}
+                <AvatarFallback>
+                  {sender.trim().charAt(0).toUpperCase() || "?"}
+                </AvatarFallback>
+              </Avatar>
+              <Input
+                id="avatar"
+                type="file"
+                accept="image/*"
+                ref={avatarInputRef}
+                onChange={handleAvatarChange}
+                className="flex-1"
+              />
+              {avatarUrl ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Убрать аватарку"
+                  onClick={clearAvatar}
+                >
+                  <XIcon />
+                </Button>
+              ) : null}
+            </div>
           </div>
           <div className="grid gap-2">
             <Label>Сторона экрана</Label>

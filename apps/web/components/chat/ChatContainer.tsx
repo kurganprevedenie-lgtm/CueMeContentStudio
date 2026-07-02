@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { XIcon } from "lucide-react";
-import { useChatStore } from "@cueme/shared";
+import { themes, useChatStore } from "@cueme/shared";
 
 import { ChatBubble } from "@/components/chat/ChatBubble";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import { cn } from "@/lib/utils";
 export function ChatContainer() {
   const messages = useChatStore((s) => s.messages);
   const removeMessage = useChatStore((s) => s.removeMessage);
+  const themeId = useChatStore((s) => s.themeId);
+  const theme = themes[themeId];
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -19,9 +21,19 @@ export function ChatContainer() {
   }, [messages.length]);
 
   return (
-    <div className="flex h-full flex-col gap-3 overflow-y-auto p-4">
+    <div
+      className="flex h-full flex-col gap-3 overflow-y-auto p-4"
+      style={{
+        background: theme.container.background,
+        color: theme.container.text,
+        fontFamily: theme.fontFamily,
+      }}
+    >
       {messages.length === 0 ? (
-        <p className="m-auto text-center text-sm text-muted-foreground">
+        <p
+          className="m-auto text-center text-sm"
+          style={{ color: theme.senderLabel }}
+        >
           Сообщений пока нет — добавь первое через форму
         </p>
       ) : (
@@ -36,7 +48,7 @@ export function ChatContainer() {
               transition={{ type: "spring", stiffness: 380, damping: 28 }}
               className="group relative"
             >
-              <ChatBubble message={message} />
+              <ChatBubble message={message} theme={theme} />
               <Button
                 type="button"
                 variant="ghost"

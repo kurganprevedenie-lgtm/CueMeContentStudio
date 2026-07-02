@@ -1,5 +1,6 @@
 import { ChatContainer } from "@/components/chat/ChatContainer";
 import { MessageForm } from "@/components/chat/MessageForm";
+import { ThemeSelector } from "@/components/chat/ThemeSelector";
 
 export default function Home() {
   return (
@@ -13,8 +14,9 @@ export default function Home() {
         </header>
         <MessageForm />
       </section>
-      <section>
-        <div className="flex h-[640px] flex-col overflow-hidden rounded-3xl border bg-background shadow-sm">
+      <section className="flex flex-col gap-3">
+        <ThemeSelector />
+        <div className="flex h-[640px] flex-col overflow-hidden rounded-3xl border shadow-sm">
           <ChatContainer />
         </div>
       </section>
