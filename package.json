@@ -1,0 +1,13 @@
+{
+  "name": "cueme-content-studio",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "lint": "pnpm --filter web lint"
+  }
+}
