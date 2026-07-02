@@ -1,16 +1,21 @@
 "use client";
 
-import type { Message } from "@cueme/shared";
+import type { ChatTheme, Message } from "@cueme/shared";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 interface ChatBubbleProps {
   message: Message;
+  theme: ChatTheme;
 }
 
-export function ChatBubble({ message }: ChatBubbleProps) {
+export function ChatBubble({ message, theme }: ChatBubbleProps) {
   const isRight = message.side === "right";
+  const bubble = isRight ? theme.bubble.right : theme.bubble.left;
+  const tailRadius = isRight
+    ? { borderBottomRightRadius: "6px" }
+    : { borderBottomLeftRadius: "6px" };
 
   return (
     <div className={cn("flex items-end gap-2", isRight && "flex-row-reverse")}>
@@ -28,16 +33,17 @@ export function ChatBubble({ message }: ChatBubbleProps) {
           isRight && "items-end"
         )}
       >
-        <span className="px-1 text-xs text-muted-foreground">
+        <span className="px-1 text-xs" style={{ color: theme.senderLabel }}>
           {message.sender}
         </span>
         <div
-          className={cn(
-            "rounded-2xl px-3.5 py-2 text-sm break-words whitespace-pre-wrap",
-            isRight
-              ? "rounded-br-md bg-blue-500 text-white"
-              : "rounded-bl-md bg-muted text-foreground"
-          )}
+          className="px-3.5 py-2 text-sm break-words whitespace-pre-wrap"
+          style={{
+            background: bubble.background,
+            color: bubble.text,
+            borderRadius: theme.bubble.borderRadius,
+            ...tailRadius,
+          }}
         >
           {message.text}
         </div>
