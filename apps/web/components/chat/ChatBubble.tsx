@@ -1,5 +1,6 @@
 "use client";
 
+import { Volume2Icon } from "lucide-react";
 import type { ChatTheme, Message } from "@cueme/shared";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -8,9 +9,11 @@ import { cn } from "@/lib/utils";
 interface ChatBubbleProps {
   message: Message;
   theme: ChatTheme;
+  /** Если передан и у сообщения есть audioUrl — показываем кнопку прослушивания */
+  onPlayAudio?: () => void;
 }
 
-export function ChatBubble({ message, theme }: ChatBubbleProps) {
+export function ChatBubble({ message, theme, onPlayAudio }: ChatBubbleProps) {
   const isRight = message.side === "right";
   const bubble = isRight ? theme.bubble.right : theme.bubble.left;
   const tailRadius = isRight
@@ -48,6 +51,17 @@ export function ChatBubble({ message, theme }: ChatBubbleProps) {
           {message.text}
         </div>
       </div>
+      {message.audioUrl && onPlayAudio ? (
+        <button
+          type="button"
+          aria-label="Прослушать озвучку"
+          className="self-center rounded-full p-1 transition-opacity hover:opacity-70"
+          style={{ color: theme.senderLabel }}
+          onClick={onPlayAudio}
+        >
+          <Volume2Icon className="size-4" />
+        </button>
+      ) : null}
     </div>
   );
 }

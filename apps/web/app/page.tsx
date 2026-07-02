@@ -1,6 +1,7 @@
 import { ChatContainer } from "@/components/chat/ChatContainer";
 import { MessageForm } from "@/components/chat/MessageForm";
 import { ThemeSelector } from "@/components/chat/ThemeSelector";
+import { VoicePanel } from "@/components/chat/VoicePanel";
 
 export default function Home() {
   return (
@@ -13,6 +14,7 @@ export default function Home() {
           </p>
         </header>
         <MessageForm />
+        <VoicePanel />
       </section>
       <section className="flex flex-col gap-3">
         <ThemeSelector />
