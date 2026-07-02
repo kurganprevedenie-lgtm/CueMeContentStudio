@@ -42,7 +42,7 @@ Live-превью в браузере          Server action → ElevenLabs API
 - Селектор темы в UI
 - Загрузка аватарок (input file → base64, без бэкенда)
 
-### Этап 3 — ElevenLabs интеграция ⬜
+### Этап 3 — ElevenLabs интеграция ✅
 - Server action `generateVoice(text, voiceId)`
 - Список голосов через `GET /v1/voices`
 - Селектор голоса на участника чата

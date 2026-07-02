@@ -15,6 +15,13 @@ export function ChatContainer() {
   const themeId = useChatStore((s) => s.themeId);
   const theme = themes[themeId];
   const bottomRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const playAudio = (url: string) => {
+    audioRef.current?.pause();
+    audioRef.current = new Audio(url);
+    void audioRef.current.play();
+  };
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -48,7 +55,15 @@ export function ChatContainer() {
               transition={{ type: "spring", stiffness: 380, damping: 28 }}
               className="group relative"
             >
-              <ChatBubble message={message} theme={theme} />
+              <ChatBubble
+                message={message}
+                theme={theme}
+                onPlayAudio={
+                  message.audioUrl
+                    ? () => playAudio(message.audioUrl!)
+                    : undefined
+                }
+              />
               <Button
                 type="button"
                 variant="ghost"

@@ -4,4 +4,6 @@ export interface Message {
   text: string;
   side: "left" | "right";
   avatarUrl?: string;
+  /** data-URL сгенерированной озвучки (этап 3+) */
+  audioUrl?: string;
 }
