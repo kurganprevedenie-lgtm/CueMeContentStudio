@@ -10,7 +10,10 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
+    "@cueme/remotion": "workspace:*",
     "@cueme/shared": "workspace:*",
+    "@remotion/media-utils": "^4.0.0",
+    "@remotion/player": "^4.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.0.0",

@@ -1,6 +1,7 @@
 import { ChatContainer } from "@/components/chat/ChatContainer";
 import { MessageForm } from "@/components/chat/MessageForm";
 import { ThemeSelector } from "@/components/chat/ThemeSelector";
+import { VideoPreview } from "@/components/chat/VideoPreview";
 import { VoicePanel } from "@/components/chat/VoicePanel";
 
 export default function Home() {
@@ -21,6 +22,7 @@ export default function Home() {
         <div className="flex h-[640px] flex-col overflow-hidden rounded-3xl border shadow-sm">
           <ChatContainer />
         </div>
+        <VideoPreview />
       </section>
     </main>
   );

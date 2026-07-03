@@ -48,7 +48,7 @@ Live-превью в браузере          Server action → ElevenLabs API
 - Селектор голоса на участника чата
 - Хранение сгенерированного аудио + URL
 
-### Этап 4 — Remotion composition ⬜
+### Этап 4 — Remotion composition ✅
 - Composition принимает `messages[]` (с `audioUrl` и timing) и `theme`
 - `useCurrentFrame` + `interpolate` — появление сообщения синхронизировано с длительностью его аудио (через `getAudioDurationInSeconds` из `@remotion/media-utils`, НЕ по количеству символов)
 - Remotion Player — превью видео в браузере, без серверного рендера
