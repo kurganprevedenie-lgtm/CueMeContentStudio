@@ -93,7 +93,8 @@ export function VoicePanel() {
     if (!url) return;
     previewRef.current?.pause();
     previewRef.current = new Audio(url);
-    void previewRef.current.play();
+    // обрыв предыдущего воспроизведения кидает AbortError — это не ошибка
+    previewRef.current.play().catch(() => {});
   };
 
   const handleGenerate = async () => {

@@ -20,7 +20,8 @@ export function ChatContainer() {
   const playAudio = (url: string) => {
     audioRef.current?.pause();
     audioRef.current = new Audio(url);
-    void audioRef.current.play();
+    // обрыв предыдущего воспроизведения кидает AbortError — это не ошибка
+    audioRef.current.play().catch(() => {});
   };
 
   useEffect(() => {
