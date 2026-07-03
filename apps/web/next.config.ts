@@ -19,7 +19,7 @@ try {
 }
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@cueme/shared"],
+  transpilePackages: ["@cueme/shared", "@cueme/remotion"],
 };
 
 export default nextConfig;
