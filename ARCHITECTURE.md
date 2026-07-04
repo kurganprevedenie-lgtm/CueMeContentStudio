@@ -53,7 +53,7 @@ Live-превью в браузере          Server action → ElevenLabs API
 - `useCurrentFrame` + `interpolate` — появление сообщения синхронизировано с длительностью его аудио (через `getAudioDurationInSeconds` из `@remotion/media-utils`, НЕ по количеству символов)
 - Remotion Player — превью видео в браузере, без серверного рендера
 
-### Этап 5 — Серверный рендер + экспорт ⬜
+### Этап 5 — Серверный рендер + экспорт ✅
 - API route с `renderMedia` (`@remotion/renderer`)
 - Статус-модель `processing / done / error` — рендер асинхронный, не блокирующий запрос
 - Скачивание готового .mp4
