@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Player } from "@remotion/player";
 import { getAudioDurationInSeconds } from "@remotion/media-utils";
-import { ClapperboardIcon, Loader2Icon } from "lucide-react";
+import { ClapperboardIcon, DownloadIcon, Loader2Icon } from "lucide-react";
 import { themes, useChatStore } from "@cueme/shared";
 import {
   ChatVideo,
@@ -14,7 +14,7 @@ import {
   type MessageTiming,
 } from "@cueme/remotion";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 /** Пауза для сообщений без озвучки, сек (не оценка аудио — просто темп чтения) */
@@ -32,6 +32,16 @@ export function VideoPreview() {
   const [timings, setTimings] = useState<MessageTiming[] | null>(null);
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  type ExportState =
+    | { status: "idle" }
+    | { status: "processing"; progress: number }
+    | { status: "done"; jobId: string }
+    | { status: "error"; message: string };
+  const [exportState, setExportState] = useState<ExportState>({
+    status: "idle",
+  });
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const buildTimings = async () => {
     setBuilding(true);
@@ -52,6 +62,54 @@ export function VideoPreview() {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBuilding(false);
+    }
+  };
+
+  const pollStatus = (jobId: string) => {
+    fetch(`/api/render/${jobId}`)
+      .then((r) => r.json())
+      .then((data: { status: string; progress: number; error?: string }) => {
+        if (data.status === "done") {
+          setExportState({ status: "done", jobId });
+        } else if (data.status === "error") {
+          setExportState({
+            status: "error",
+            message: data.error ?? "Не удалось отрендерить видео",
+          });
+        } else {
+          setExportState({ status: "processing", progress: data.progress });
+          pollRef.current = setTimeout(() => pollStatus(jobId), 1000);
+        }
+      })
+      .catch((e: unknown) => {
+        setExportState({
+          status: "error",
+          message: e instanceof Error ? e.message : String(e),
+        });
+      });
+  };
+
+  const startExport = async () => {
+    if (!timings) return;
+    if (pollRef.current) clearTimeout(pollRef.current);
+    setExportState({ status: "processing", progress: 0 });
+    try {
+      const res = await fetch("/api/render", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages, theme, timings }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      const { jobId } = await res.json();
+      pollStatus(jobId);
+    } catch (e: unknown) {
+      setExportState({
+        status: "error",
+        message: e instanceof Error ? e.message : String(e),
+      });
     }
   };
 
@@ -97,6 +155,48 @@ export function VideoPreview() {
         </Button>
         {error ? (
           <p className="text-sm break-words text-destructive">{error}</p>
+        ) : null}
+
+        {timings ? (
+          <div className="flex w-full flex-col gap-2 border-t pt-4">
+            {exportState.status === "done" ? (
+              <a
+                href={`/api/render/${exportState.jobId}/download`}
+                download
+                className={buttonVariants({ className: "w-full" })}
+              >
+                <DownloadIcon className="size-4" /> Скачать .mp4
+              </a>
+            ) : (
+              <Button
+                type="button"
+                className="w-full"
+                disabled={exportState.status === "processing"}
+                onClick={startExport}
+              >
+                {exportState.status === "processing" ? (
+                  <>
+                    <Loader2Icon className="size-4 animate-spin" />
+                    Рендерю видео… {Math.round(exportState.progress * 100)}%
+                  </>
+                ) : (
+                  <>
+                    <ClapperboardIcon className="size-4" />
+                    Экспортировать в .mp4
+                  </>
+                )}
+              </Button>
+            )}
+            {exportState.status === "error" ? (
+              <p className="text-sm break-words text-destructive">
+                {exportState.message}
+              </p>
+            ) : null}
+            <p className="text-xs text-muted-foreground">
+              Рендер идёт на сервере и может занять от десятков секунд до
+              нескольких минут — страницу можно не перезагружать
+            </p>
+          </div>
         ) : null}
       </CardContent>
     </Card>

@@ -20,6 +20,8 @@ try {
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@cueme/shared", "@cueme/remotion"],
+  // @remotion/renderer и @remotion/bundler запускают Chromium/ffmpeg — не бандлить
+  serverExternalPackages: ["@remotion/renderer", "@remotion/bundler"],
 };
 
 export default nextConfig;
