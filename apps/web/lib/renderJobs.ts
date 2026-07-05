@@ -36,10 +36,14 @@ declare global {
 const jobs = globalThis.__cuemeRenderJobs ?? new Map<string, RenderJob>();
 globalThis.__cuemeRenderJobs = jobs;
 
-// Бандл Remotion собирается один раз и переиспользуется между рендерами —
-// сборка занимает секунды, гонять её на каждый запрос не нужно
+// Бандл Remotion собирается заново на каждый рендер в dev-режиме — иначе
+// правки в packages/remotion или в apps/web/public (например, замена логотипа)
+// не будут видны в экспортированном видео, пока не перезапустишь сервер.
+// В проде (единственный процесс, код не меняется на лету) собираем один раз
+// и переиспользуем — сборка занимает секунды, гонять её на каждый запрос не нужно.
 function getBundle(): Promise<string> {
-  if (!globalThis.__cuemeRenderBundle) {
+  const isProd = process.env.NODE_ENV === "production";
+  if (!isProd || !globalThis.__cuemeRenderBundle) {
     const entryPoint = path.join(
       process.cwd(),
       "..",

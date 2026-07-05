@@ -25,10 +25,15 @@ export const RemotionRoot: React.FC = () => {
           messages: [],
           theme: themes["imessage-light"],
           timings: [],
+          suggestion: null,
+          suggestionTiming: null,
         } satisfies ChatVideoProps
       }
       calculateMetadata={({ props }) => ({
-        durationInFrames: totalDurationInFrames(props.timings),
+        durationInFrames: totalDurationInFrames(
+          props.timings,
+          props.suggestionTiming
+        ),
       })}
     />
   );
