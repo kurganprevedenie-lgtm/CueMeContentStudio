@@ -1,6 +1,7 @@
 import { ChatContainer } from "@/components/chat/ChatContainer";
 import { MessageForm } from "@/components/chat/MessageForm";
 import { ParticipantsEditor } from "@/components/chat/ParticipantsEditor";
+import { SuggestionPanel } from "@/components/chat/SuggestionPanel";
 import { ThemeSelector } from "@/components/chat/ThemeSelector";
 import { VideoPreview } from "@/components/chat/VideoPreview";
 import { VoicePanel } from "@/components/chat/VoicePanel";
@@ -18,6 +19,7 @@ export default function Home() {
         <ParticipantsEditor />
         <MessageForm />
         <VoicePanel />
+        <SuggestionPanel />
       </section>
       <section className="flex flex-col gap-3">
         <ThemeSelector />

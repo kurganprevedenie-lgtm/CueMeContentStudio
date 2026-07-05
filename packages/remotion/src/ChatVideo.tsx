@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   AbsoluteFill,
   Audio,
@@ -11,13 +11,20 @@ import {
 } from "remotion";
 import type { ChatTheme, Message } from "@cueme/shared";
 
-import type { ChatVideoProps, MessageTiming } from "./types";
+import type {
+  ChatVideoProps,
+  MessageTiming,
+  SuggestionContent,
+  SuggestionTiming,
+} from "./types";
 
 // Размеры под кадр 1080x1920 (примерно x2.7 от браузерного превью)
 const BUBBLE_FONT_SIZE = 48;
 const LABEL_FONT_SIZE = 32;
 const AVATAR_SIZE = 92;
 const SIDE_PADDING = 48;
+const SUGGESTION_FONT_SIZE = 34;
+const SUGGESTION_LOGO_HEIGHT = 64;
 
 const VideoBubble: React.FC<{
   message: Message;
@@ -124,10 +131,119 @@ const VideoBubble: React.FC<{
   );
 };
 
+/**
+ * Логотип берётся из apps/web/public/cueme-logo.png (обычный <img>, не
+ * Remotion <Img> — так рендер не падает, если файла ещё нет, а просто
+ * показывает текстовую заглушку "CueMe").
+ */
+const SuggestionLogo: React.FC = () => {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <span
+        style={{
+          color: "#ffffff",
+          fontSize: 32,
+          fontWeight: 700,
+          letterSpacing: 0.5,
+        }}
+      >
+        CueMe
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/cueme-logo.png"
+      alt="CueMe"
+      style={{ height: SUGGESTION_LOGO_HEIGHT }}
+      onError={() => setFailed(true)}
+    />
+  );
+};
+
+/**
+ * Бейдж-подсказка от CueMe: выезжает снизу после указанного сообщения
+ * и плавно исчезает, не перекрывая пузыри переписки (они растут сверху вниз).
+ */
+const SuggestionBadge: React.FC<{
+  suggestion: SuggestionContent;
+  timing: SuggestionTiming;
+}> = ({ suggestion, timing }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const startFrame = Math.floor(timing.startSec * fps);
+  const durationFrames = Math.max(Math.ceil(timing.durationSec * fps), 1);
+  const localFrame = frame - startFrame;
+
+  if (localFrame < 0 || localFrame > durationFrames) return null;
+
+  const fadeFrames = Math.min(12, Math.floor(durationFrames / 3));
+  const opacity = interpolate(
+    localFrame,
+    [0, fadeFrames, durationFrames - fadeFrames, durationFrames],
+    [0, 1, 1, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+  );
+  const translateY = interpolate(localFrame, [0, fadeFrames], [24, 0], {
+    extrapolateRight: "clamp",
+  });
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: SIDE_PADDING,
+        right: SIDE_PADDING,
+        bottom: 96,
+        display: "flex",
+        justifyContent: "center",
+        opacity,
+        transform: `translateY(${translateY}px)`,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 14,
+          padding: "28px 40px",
+          borderRadius: 32,
+          background: "#141417",
+          border: "2px solid transparent",
+          backgroundImage:
+            "linear-gradient(#141417, #141417), linear-gradient(120deg, #7c5cff, #ff5ca8)",
+          backgroundOrigin: "border-box",
+          backgroundClip: "padding-box, border-box",
+          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.45)",
+          maxWidth: "82%",
+        }}
+      >
+        <SuggestionLogo />
+        <p
+          style={{
+            margin: 0,
+            color: "#ffffff",
+            fontSize: SUGGESTION_FONT_SIZE,
+            textAlign: "center",
+            lineHeight: 1.3,
+          }}
+        >
+          {suggestion.text}
+        </p>
+      </div>
+    </div>
+  );
+};
+
 export const ChatVideo: React.FC<ChatVideoProps> = ({
   messages,
   theme,
   timings,
+  suggestion,
+  suggestionTiming,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -180,6 +296,20 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
           </Sequence>
         );
       })}
+      {suggestion?.text && suggestionTiming ? (
+        <SuggestionBadge suggestion={suggestion} timing={suggestionTiming} />
+      ) : null}
+      {suggestion?.audioUrl && suggestionTiming ? (
+        <Sequence
+          from={Math.floor(suggestionTiming.startSec * fps)}
+          durationInFrames={Math.max(
+            Math.ceil(suggestionTiming.durationSec * fps),
+            1
+          )}
+        >
+          <Audio src={suggestion.audioUrl} />
+        </Sequence>
+      ) : null}
     </AbsoluteFill>
   );
 };

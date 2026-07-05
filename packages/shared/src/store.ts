@@ -1,10 +1,12 @@
 import { create } from "zustand";
 
 import { defaultThemeId, type ThemeId } from "./themes";
-import type { Message, Participant } from "./types";
+import type { Message, Participant, Suggestion } from "./types";
 
 /** Переписка всегда между двумя участниками: participants[0] = левая сторона, participants[1] = правая */
 export type ParticipantIndex = 0 | 1;
+
+const emptySuggestion: Suggestion = { text: "", afterMessageId: null };
 
 interface ChatState {
   messages: Message[];
@@ -12,6 +14,7 @@ interface ChatState {
   participants: [Participant, Participant];
   /** Голос ElevenLabs, выбранный для каждого отправителя (ключ — имя участника) */
   voiceBySender: Record<string, string>;
+  suggestion: Suggestion;
   addMessage: (input: { participantIndex: ParticipantIndex; text: string }) => void;
   removeMessage: (id: string) => void;
   clearMessages: () => void;
@@ -20,6 +23,11 @@ interface ChatState {
   setVoice: (sender: string, voiceId: string) => void;
   setMessageAudio: (id: string, audioUrl: string) => void;
   clearAudio: () => void;
+  setSuggestionText: (text: string) => void;
+  setSuggestionVoice: (voiceId: string) => void;
+  setSuggestionAudio: (audioUrl: string) => void;
+  setSuggestionAnchor: (messageId: string | null) => void;
+  clearSuggestionAudio: () => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -27,6 +35,7 @@ export const useChatStore = create<ChatState>((set) => ({
   themeId: defaultThemeId,
   participants: [{ name: "Аня" }, { name: "Макс" }],
   voiceBySender: {},
+  suggestion: emptySuggestion,
   addMessage: ({ participantIndex, text }) =>
     set((state) => {
       const participant = state.participants[participantIndex];
@@ -65,4 +74,20 @@ export const useChatStore = create<ChatState>((set) => ({
     set((state) => ({
       messages: state.messages.map(({ audioUrl: _audioUrl, ...rest }) => rest),
     })),
+  setSuggestionText: (text) =>
+    set((state) => ({
+      // меняем текст — старая озвучка больше ему не соответствует
+      suggestion: { ...state.suggestion, text, audioUrl: undefined },
+    })),
+  setSuggestionVoice: (voiceId) =>
+    set((state) => ({ suggestion: { ...state.suggestion, voiceId } })),
+  setSuggestionAudio: (audioUrl) =>
+    set((state) => ({ suggestion: { ...state.suggestion, audioUrl } })),
+  setSuggestionAnchor: (afterMessageId) =>
+    set((state) => ({ suggestion: { ...state.suggestion, afterMessageId } })),
+  clearSuggestionAudio: () =>
+    set((state) => {
+      const { audioUrl: _audioUrl, ...rest } = state.suggestion;
+      return { suggestion: rest };
+    }),
 }));

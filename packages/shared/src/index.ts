@@ -1,4 +1,4 @@
-export type { Message, Participant } from "./types";
+export type { Message, Participant, Suggestion } from "./types";
 export { useChatStore, type ParticipantIndex } from "./store";
 export {
   themes,
