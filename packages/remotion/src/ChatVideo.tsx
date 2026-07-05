@@ -46,6 +46,9 @@ const VideoBubble: React.FC<{
   });
   const translateY = interpolate(progress, [0, 1], [36, 0]);
   const scale = interpolate(progress, [0, 1], [0.85, 1]);
+  const cornerRadius = theme.bubble.borderRadius
+    ? `calc(${theme.bubble.borderRadius} * 2.2)`
+    : "40px";
 
   return (
     <div
@@ -114,12 +117,12 @@ const VideoBubble: React.FC<{
             fontSize: BUBBLE_FONT_SIZE,
             lineHeight: 1.35,
             padding: "26px 38px",
-            borderRadius: theme.bubble.borderRadius
-              ? `calc(${theme.bubble.borderRadius} * 2.2)`
-              : 40,
-            ...(isRight
-              ? { borderBottomRightRadius: 14 }
-              : { borderBottomLeftRadius: 14 }),
+            // Четыре отдельных угла вместо borderRadius+borderBottom*Radius —
+            // React ругается на смешивание shorthand и longhand в одном style
+            borderTopLeftRadius: cornerRadius,
+            borderTopRightRadius: cornerRadius,
+            borderBottomLeftRadius: isRight ? cornerRadius : 14,
+            borderBottomRightRadius: isRight ? 14 : cornerRadius,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
           }}
