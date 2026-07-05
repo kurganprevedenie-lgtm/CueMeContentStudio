@@ -1,52 +1,26 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { XIcon } from "lucide-react";
-import { useChatStore } from "@cueme/shared";
+import { useState } from "react";
+import { useChatStore, type ParticipantIndex } from "@cueme/shared";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 export function MessageForm() {
+  const participants = useChatStore((s) => s.participants);
   const addMessage = useChatStore((s) => s.addMessage);
-  const [sender, setSender] = useState("");
+  const [activeIndex, setActiveIndex] = useState<ParticipantIndex>(0);
   const [text, setText] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
-  const [side, setSide] = useState<"left" | "right">("left");
-  const avatarInputRef = useRef<HTMLInputElement>(null);
 
-  const canSubmit = sender.trim().length > 0 && text.trim().length > 0;
-
-  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      setAvatarUrl("");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () =>
-      setAvatarUrl(typeof reader.result === "string" ? reader.result : "");
-    reader.readAsDataURL(file);
-  };
-
-  const clearAvatar = () => {
-    setAvatarUrl("");
-    if (avatarInputRef.current) avatarInputRef.current.value = "";
-  };
+  const canSubmit = text.trim().length > 0;
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!canSubmit) return;
-    addMessage({
-      sender: sender.trim(),
-      text: text.trim(),
-      side,
-      avatarUrl: avatarUrl || undefined,
-    });
+    addMessage({ participantIndex: activeIndex, text: text.trim() });
     setText("");
   };
 
@@ -57,76 +31,47 @@ export function MessageForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="sender">Отправитель</Label>
-            <Input
-              id="sender"
-              value={sender}
-              onChange={(e) => setSender(e.target.value)}
-              placeholder="Аня"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="text">Текст</Label>
-            <Textarea
-              id="text"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Ты не поверишь, что сейчас было…"
-              rows={3}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="avatar">Аватарка (необязательно)</Label>
-            <div className="flex items-center gap-2">
-              <Avatar size="default">
-                {avatarUrl ? (
-                  <AvatarImage src={avatarUrl} alt="Превью аватарки" />
-                ) : null}
-                <AvatarFallback>
-                  {sender.trim().charAt(0).toUpperCase() || "?"}
-                </AvatarFallback>
-              </Avatar>
-              <Input
-                id="avatar"
-                type="file"
-                accept="image/*"
-                ref={avatarInputRef}
-                onChange={handleAvatarChange}
-                className="flex-1"
-              />
-              {avatarUrl ? (
-                <Button
+          <div className="grid grid-cols-2 gap-2">
+            {participants.map((participant, index) => {
+              const idx = index as ParticipantIndex;
+              const active = activeIndex === idx;
+              return (
+                <button
+                  key={idx}
                   type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Убрать аватарку"
-                  onClick={clearAvatar}
+                  onClick={() => setActiveIndex(idx)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors",
+                    active
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:bg-muted"
+                  )}
                 >
-                  <XIcon />
-                </Button>
-              ) : null}
-            </div>
+                  <Avatar size="default">
+                    {participant.avatarUrl ? (
+                      <AvatarImage
+                        src={participant.avatarUrl}
+                        alt={participant.name}
+                      />
+                    ) : null}
+                    <AvatarFallback>
+                      {participant.name.charAt(0).toUpperCase() || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="truncate text-sm font-medium">
+                    {participant.name || `Участник ${idx + 1}`}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <div className="grid gap-2">
-            <Label>Сторона экрана</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant={side === "left" ? "default" : "outline"}
-                onClick={() => setSide("left")}
-              >
-                Слева
-              </Button>
-              <Button
-                type="button"
-                variant={side === "right" ? "default" : "outline"}
-                onClick={() => setSide("right")}
-              >
-                Справа
-              </Button>
-            </div>
-          </div>
+          <Textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Ты не поверишь, что сейчас было…"
+            rows={3}
+            autoFocus
+          />
           <Button type="submit" disabled={!canSubmit}>
             Добавить в диалог
           </Button>

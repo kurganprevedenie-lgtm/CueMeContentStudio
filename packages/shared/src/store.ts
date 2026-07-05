@@ -1,17 +1,22 @@
 import { create } from "zustand";
 
 import { defaultThemeId, type ThemeId } from "./themes";
-import type { Message } from "./types";
+import type { Message, Participant } from "./types";
+
+/** Переписка всегда между двумя участниками: participants[0] = левая сторона, participants[1] = правая */
+export type ParticipantIndex = 0 | 1;
 
 interface ChatState {
   messages: Message[];
   themeId: ThemeId;
-  /** Голос ElevenLabs, выбранный для каждого отправителя */
+  participants: [Participant, Participant];
+  /** Голос ElevenLabs, выбранный для каждого отправителя (ключ — имя участника) */
   voiceBySender: Record<string, string>;
-  addMessage: (message: Omit<Message, "id">) => void;
+  addMessage: (input: { participantIndex: ParticipantIndex; text: string }) => void;
   removeMessage: (id: string) => void;
   clearMessages: () => void;
   setTheme: (themeId: ThemeId) => void;
+  setParticipant: (index: ParticipantIndex, patch: Partial<Participant>) => void;
   setVoice: (sender: string, voiceId: string) => void;
   setMessageAudio: (id: string, audioUrl: string) => void;
   clearAudio: () => void;
@@ -20,20 +25,32 @@ interface ChatState {
 export const useChatStore = create<ChatState>((set) => ({
   messages: [],
   themeId: defaultThemeId,
+  participants: [{ name: "Аня" }, { name: "Макс" }],
   voiceBySender: {},
-  addMessage: (message) =>
-    set((state) => ({
-      messages: [
-        ...state.messages,
-        { ...message, id: crypto.randomUUID() },
-      ],
-    })),
+  addMessage: ({ participantIndex, text }) =>
+    set((state) => {
+      const participant = state.participants[participantIndex];
+      const message: Message = {
+        id: crypto.randomUUID(),
+        sender: participant.name,
+        text,
+        side: participantIndex === 0 ? "left" : "right",
+        avatarUrl: participant.avatarUrl,
+      };
+      return { messages: [...state.messages, message] };
+    }),
   removeMessage: (id) =>
     set((state) => ({
       messages: state.messages.filter((m) => m.id !== id),
     })),
   clearMessages: () => set({ messages: [] }),
   setTheme: (themeId) => set({ themeId }),
+  setParticipant: (index, patch) =>
+    set((state) => {
+      const participants = [...state.participants] as [Participant, Participant];
+      participants[index] = { ...participants[index], ...patch };
+      return { participants };
+    }),
   setVoice: (sender, voiceId) =>
     set((state) => ({
       voiceBySender: { ...state.voiceBySender, [sender]: voiceId },

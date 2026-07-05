@@ -38,9 +38,10 @@ export function VoicePanel() {
   const [error, setError] = useState<string | null>(null);
   const previewRef = useRef<HTMLAudioElement | null>(null);
 
-  const participants = useMemo(
-    () => [...new Set(messages.map((m) => m.sender))],
-    [messages]
+  const participants = useChatStore((s) => s.participants);
+  const participantNames = useMemo(
+    () => participants.map((p) => p.name).filter((name) => name.trim().length > 0),
+    [participants]
   );
   const pendingMessages = messages.filter((m) => !m.audioUrl);
   const pendingChars = pendingMessages.reduce(
@@ -79,10 +80,10 @@ export function VoicePanel() {
   // участникам без голоса назначаем первый из списка, чтобы всё работало сразу
   useEffect(() => {
     if (voices.length === 0) return;
-    for (const p of participants) {
-      if (!voiceBySender[p]) setVoice(p, voices[0].id);
+    for (const name of participantNames) {
+      if (!voiceBySender[name]) setVoice(name, voices[0].id);
     }
-  }, [voices, participants, voiceBySender, setVoice]);
+  }, [voices, participantNames, voiceBySender, setVoice]);
 
   const voiceItems = useMemo(
     () => Object.fromEntries(voices.map((v) => [v.id, v.name])),
@@ -131,13 +132,13 @@ export function VoicePanel() {
           </p>
         ) : voicesError ? (
           <p className="text-sm break-words text-destructive">{voicesError}</p>
-        ) : participants.length === 0 ? (
+        ) : participantNames.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Добавь сообщения — здесь появится выбор голосов для участников
+            Впиши имена участников — здесь появится выбор голосов
           </p>
         ) : (
           <>
-            {participants.map((participant) => {
+            {participantNames.map((participant) => {
               const selected = voices.find(
                 (v) => v.id === voiceBySender[participant]
               );
