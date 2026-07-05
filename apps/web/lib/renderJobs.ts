@@ -6,7 +6,11 @@ import path from "node:path";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition } from "@remotion/renderer";
 import type { ChatTheme, Message } from "@cueme/shared";
-import type { MessageTiming } from "@cueme/remotion";
+import type {
+  MessageTiming,
+  SuggestionContent,
+  SuggestionTiming,
+} from "@cueme/remotion";
 
 export type RenderStatus = "processing" | "done" | "error";
 
@@ -18,15 +22,24 @@ export interface RenderJob {
   error?: string;
 }
 
-const jobs = new Map<string, RenderJob>();
 const OUTPUT_DIR = path.join(os.tmpdir(), "cueme-renders");
+
+// В dev-режиме Next.js/Turbopack может собрать разные API-роуты как отдельные
+// экземпляры модуля — обычная переменная модуля в таком случае не была бы общей
+// между POST /api/render и GET /api/render/[jobId]. Держим состояние на globalThis,
+// чтобы оно гарантированно было одно на весь процесс сервера.
+declare global {
+  var __cuemeRenderJobs: Map<string, RenderJob> | undefined;
+  var __cuemeRenderBundle: Promise<string> | null | undefined;
+}
+
+const jobs = globalThis.__cuemeRenderJobs ?? new Map<string, RenderJob>();
+globalThis.__cuemeRenderJobs = jobs;
 
 // Бандл Remotion собирается один раз и переиспользуется между рендерами —
 // сборка занимает секунды, гонять её на каждый запрос не нужно
-let bundlePromise: Promise<string> | null = null;
-
 function getBundle(): Promise<string> {
-  if (!bundlePromise) {
+  if (!globalThis.__cuemeRenderBundle) {
     const entryPoint = path.join(
       process.cwd(),
       "..",
@@ -36,12 +49,17 @@ function getBundle(): Promise<string> {
       "src",
       "entry.ts"
     );
-    bundlePromise = bundle({ entryPoint }).catch((e) => {
-      bundlePromise = null;
+    // publicDir = apps/web/public — оттуда же логотип отдаётся браузерному Player,
+    // чтобы серверный рендер видел ровно тот же файл
+    globalThis.__cuemeRenderBundle = bundle({
+      entryPoint,
+      publicDir: path.join(process.cwd(), "public"),
+    }).catch((e) => {
+      globalThis.__cuemeRenderBundle = null;
       throw e;
     });
   }
-  return bundlePromise;
+  return globalThis.__cuemeRenderBundle;
 }
 
 export function getRenderJob(id: string): RenderJob | undefined {
@@ -52,6 +70,8 @@ export interface StartRenderInput {
   messages: Message[];
   theme: ChatTheme;
   timings: MessageTiming[];
+  suggestion?: SuggestionContent | null;
+  suggestionTiming?: SuggestionTiming | null;
 }
 
 export function startRender(input: StartRenderInput): RenderJob {
@@ -71,6 +91,8 @@ async function runRender(job: RenderJob, input: StartRenderInput) {
       messages: input.messages,
       theme: input.theme,
       timings: input.timings,
+      suggestion: input.suggestion ?? null,
+      suggestionTiming: input.suggestionTiming ?? null,
     };
 
     const composition = await selectComposition({

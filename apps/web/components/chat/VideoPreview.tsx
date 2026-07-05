@@ -12,6 +12,8 @@ import {
   VIDEO_WIDTH,
   totalDurationInFrames,
   type MessageTiming,
+  type SuggestionContent,
+  type SuggestionTiming,
 } from "@cueme/remotion";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -23,13 +25,22 @@ const SILENT_DURATION_SEC = 1.8;
 const GAP_SEC = 0.3;
 /** Отступ перед первой репликой, сек */
 const LEAD_IN_SEC = 0.5;
+/** Сколько бейдж-подсказка висит на экране, если её не озвучили */
+const SUGGESTION_SILENT_DURATION_SEC = 2.5;
+/** Пауза до и после бейджа-подсказки, сек (место на fade in/out) */
+const SUGGESTION_GAP_SEC = 0.4;
 
 export function VideoPreview() {
   const messages = useChatStore((s) => s.messages);
   const themeId = useChatStore((s) => s.themeId);
   const theme = themes[themeId];
+  const suggestion = useChatStore((s) => s.suggestion);
 
   const [timings, setTimings] = useState<MessageTiming[] | null>(null);
+  const [suggestionTiming, setSuggestionTiming] =
+    useState<SuggestionTiming | null>(null);
+  const [suggestionContent, setSuggestionContent] =
+    useState<SuggestionContent | null>(null);
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,8 +58,17 @@ export function VideoPreview() {
     setBuilding(true);
     setError(null);
     try {
+      const hasSuggestion = suggestion.text.trim().length > 0;
+      // "авто" — снимок того, какое сообщение сейчас последнее; конкретный якорь
+      // фиксирует подсказку между этим сообщением и следующими
+      const resolvedAnchorId = hasSuggestion
+        ? (suggestion.afterMessageId ?? messages[messages.length - 1]?.id ?? null)
+        : null;
+
       const result: MessageTiming[] = [];
+      let nextSuggestionTiming: SuggestionTiming | null = null;
       let cursor = LEAD_IN_SEC;
+
       for (const message of messages) {
         // длительность — только из реального аудиофайла, никаких оценок по тексту
         const durationSec = message.audioUrl
@@ -56,8 +76,24 @@ export function VideoPreview() {
           : SILENT_DURATION_SEC;
         result.push({ id: message.id, startSec: cursor, durationSec });
         cursor += durationSec + GAP_SEC;
+
+        if (hasSuggestion && message.id === resolvedAnchorId) {
+          const suggestionDurationSec = suggestion.audioUrl
+            ? await getAudioDurationInSeconds(suggestion.audioUrl)
+            : SUGGESTION_SILENT_DURATION_SEC;
+          cursor += SUGGESTION_GAP_SEC;
+          nextSuggestionTiming = { startSec: cursor, durationSec: suggestionDurationSec };
+          cursor += suggestionDurationSec + SUGGESTION_GAP_SEC;
+        }
       }
+
       setTimings(result);
+      setSuggestionTiming(nextSuggestionTiming);
+      setSuggestionContent(
+        hasSuggestion
+          ? { text: suggestion.text.trim(), audioUrl: suggestion.audioUrl }
+          : null
+      );
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -97,7 +133,13 @@ export function VideoPreview() {
       const res = await fetch("/api/render", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages, theme, timings }),
+        body: JSON.stringify({
+          messages,
+          theme,
+          timings,
+          suggestion: suggestionContent,
+          suggestionTiming,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -122,8 +164,14 @@ export function VideoPreview() {
         {timings ? (
           <Player
             component={ChatVideo}
-            inputProps={{ messages, theme, timings }}
-            durationInFrames={totalDurationInFrames(timings)}
+            inputProps={{
+              messages,
+              theme,
+              timings,
+              suggestion: suggestionContent,
+              suggestionTiming,
+            }}
+            durationInFrames={totalDurationInFrames(timings, suggestionTiming)}
             fps={VIDEO_FPS}
             compositionWidth={VIDEO_WIDTH}
             compositionHeight={VIDEO_HEIGHT}

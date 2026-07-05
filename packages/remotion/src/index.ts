@@ -7,4 +7,6 @@ export {
   totalDurationInFrames,
   type ChatVideoProps,
   type MessageTiming,
+  type SuggestionTiming,
+  type SuggestionContent,
 } from "./types";
