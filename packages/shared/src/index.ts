@@ -1,5 +1,5 @@
-export type { Message } from "./types";
-export { useChatStore } from "./store";
+export type { Message, Participant } from "./types";
+export { useChatStore, type ParticipantIndex } from "./store";
 export {
   themes,
   defaultThemeId,

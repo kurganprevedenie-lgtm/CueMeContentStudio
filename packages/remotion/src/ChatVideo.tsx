@@ -14,9 +14,9 @@ import type { ChatTheme, Message } from "@cueme/shared";
 import type { ChatVideoProps, MessageTiming } from "./types";
 
 // Размеры под кадр 1080x1920 (примерно x2.7 от браузерного превью)
-const BUBBLE_FONT_SIZE = 40;
-const LABEL_FONT_SIZE = 26;
-const AVATAR_SIZE = 72;
+const BUBBLE_FONT_SIZE = 48;
+const LABEL_FONT_SIZE = 32;
+const AVATAR_SIZE = 92;
 const SIDE_PADDING = 48;
 
 const VideoBubble: React.FC<{
@@ -45,7 +45,7 @@ const VideoBubble: React.FC<{
       style={{
         display: "flex",
         alignItems: "flex-end",
-        gap: 20,
+        gap: 24,
         flexDirection: isRight ? "row-reverse" : "row",
         opacity,
         transform: `translateY(${translateY}px) scale(${scale})`,
@@ -106,7 +106,7 @@ const VideoBubble: React.FC<{
             color: bubble.text,
             fontSize: BUBBLE_FONT_SIZE,
             lineHeight: 1.35,
-            padding: "22px 34px",
+            padding: "26px 38px",
             borderRadius: theme.bubble.borderRadius
               ? `calc(${theme.bubble.borderRadius} * 2.2)`
               : 40,
@@ -147,9 +147,10 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
         style={{
           display: "flex",
           flexDirection: "column",
-          justifyContent: "flex-end",
-          gap: 30,
-          padding: `${SIDE_PADDING}px ${SIDE_PADDING}px 120px`,
+          // сообщения появляются сверху кадра и растут вниз, как обычный текст
+          justifyContent: "flex-start",
+          gap: 36,
+          padding: `140px ${SIDE_PADDING}px 60px`,
           overflow: "hidden",
         }}
       >

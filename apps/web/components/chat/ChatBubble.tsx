@@ -21,8 +21,8 @@ export function ChatBubble({ message, theme, onPlayAudio }: ChatBubbleProps) {
     : { borderBottomLeftRadius: "6px" };
 
   return (
-    <div className={cn("flex items-end gap-2", isRight && "flex-row-reverse")}>
-      <Avatar size="sm">
+    <div className={cn("flex items-end gap-3", isRight && "flex-row-reverse")}>
+      <Avatar size="lg">
         {message.avatarUrl ? (
           <AvatarImage src={message.avatarUrl} alt={message.sender} />
         ) : null}
@@ -32,15 +32,15 @@ export function ChatBubble({ message, theme, onPlayAudio }: ChatBubbleProps) {
       </Avatar>
       <div
         className={cn(
-          "flex max-w-[75%] flex-col gap-0.5",
+          "flex max-w-[78%] flex-col gap-1",
           isRight && "items-end"
         )}
       >
-        <span className="px-1 text-xs" style={{ color: theme.senderLabel }}>
+        <span className="px-1 text-sm" style={{ color: theme.senderLabel }}>
           {message.sender}
         </span>
         <div
-          className="px-3.5 py-2 text-sm break-words whitespace-pre-wrap"
+          className="px-4 py-2.5 text-base break-words whitespace-pre-wrap"
           style={{
             background: bubble.background,
             color: bubble.text,

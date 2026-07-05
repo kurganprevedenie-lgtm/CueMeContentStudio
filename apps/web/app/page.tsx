@@ -1,5 +1,6 @@
 import { ChatContainer } from "@/components/chat/ChatContainer";
 import { MessageForm } from "@/components/chat/MessageForm";
+import { ParticipantsEditor } from "@/components/chat/ParticipantsEditor";
 import { ThemeSelector } from "@/components/chat/ThemeSelector";
 import { VideoPreview } from "@/components/chat/VideoPreview";
 import { VoicePanel } from "@/components/chat/VoicePanel";
@@ -14,6 +15,7 @@ export default function Home() {
             Собери диалог — превью справа обновляется сразу
           </p>
         </header>
+        <ParticipantsEditor />
         <MessageForm />
         <VoicePanel />
       </section>

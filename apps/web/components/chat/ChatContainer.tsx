@@ -30,7 +30,7 @@ export function ChatContainer() {
 
   return (
     <div
-      className="flex h-full flex-col gap-3 overflow-y-auto p-4"
+      className="flex h-full flex-col gap-4 overflow-y-auto p-4"
       style={{
         background: theme.container.background,
         color: theme.container.text,
