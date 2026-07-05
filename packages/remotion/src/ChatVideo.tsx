@@ -23,8 +23,8 @@ const BUBBLE_FONT_SIZE = 48;
 const LABEL_FONT_SIZE = 32;
 const AVATAR_SIZE = 92;
 const SIDE_PADDING = 48;
-const SUGGESTION_FONT_SIZE = 34;
-const SUGGESTION_LOGO_HEIGHT = 64;
+const SUGGESTION_FONT_SIZE = 56;
+const SUGGESTION_LOGO_HEIGHT = 140;
 
 const VideoBubble: React.FC<{
   message: Message;
@@ -186,7 +186,7 @@ const SuggestionBadge: React.FC<{
     [0, 1, 1, 0],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
-  const translateY = interpolate(localFrame, [0, fadeFrames], [24, 0], {
+  const scale = interpolate(localFrame, [0, fadeFrames], [0.9, 1], {
     extrapolateRight: "clamp",
   });
 
@@ -194,13 +194,12 @@ const SuggestionBadge: React.FC<{
     <div
       style={{
         position: "absolute",
-        left: SIDE_PADDING,
-        right: SIDE_PADDING,
-        bottom: 96,
+        inset: 0,
         display: "flex",
+        alignItems: "center",
         justifyContent: "center",
+        padding: `0 ${SIDE_PADDING}px`,
         opacity,
-        transform: `translateY(${translateY}px)`,
       }}
     >
       <div
@@ -208,9 +207,9 @@ const SuggestionBadge: React.FC<{
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 14,
-          padding: "28px 40px",
-          borderRadius: 32,
+          gap: 28,
+          padding: "56px 48px",
+          borderRadius: 40,
           background: "#141417",
           border: "2px solid transparent",
           backgroundImage:
@@ -218,7 +217,8 @@ const SuggestionBadge: React.FC<{
           backgroundOrigin: "border-box",
           backgroundClip: "padding-box, border-box",
           boxShadow: "0 20px 60px rgba(0, 0, 0, 0.45)",
-          maxWidth: "82%",
+          maxWidth: "88%",
+          transform: `scale(${scale})`,
         }}
       >
         <SuggestionLogo />
