@@ -16,9 +16,7 @@ interface ChatBubbleProps {
 export function ChatBubble({ message, theme, onPlayAudio }: ChatBubbleProps) {
   const isRight = message.side === "right";
   const bubble = isRight ? theme.bubble.right : theme.bubble.left;
-  const tailRadius = isRight
-    ? { borderBottomRightRadius: "6px" }
-    : { borderBottomLeftRadius: "6px" };
+  const cornerRadius = theme.bubble.borderRadius;
 
   return (
     <div className={cn("flex items-end gap-3", isRight && "flex-row-reverse")}>
@@ -44,8 +42,12 @@ export function ChatBubble({ message, theme, onPlayAudio }: ChatBubbleProps) {
           style={{
             background: bubble.background,
             color: bubble.text,
-            borderRadius: theme.bubble.borderRadius,
-            ...tailRadius,
+            // Четыре отдельных угла вместо borderRadius+borderBottom*Radius —
+            // React ругается на смешивание shorthand и longhand в одном style
+            borderTopLeftRadius: cornerRadius,
+            borderTopRightRadius: cornerRadius,
+            borderBottomLeftRadius: isRight ? cornerRadius : "6px",
+            borderBottomRightRadius: isRight ? "6px" : cornerRadius,
           }}
         >
           {message.text}
