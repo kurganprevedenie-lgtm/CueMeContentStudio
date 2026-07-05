@@ -6,6 +6,7 @@ import {
   Sequence,
   interpolate,
   spring,
+  staticFile,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
@@ -135,9 +136,12 @@ const VideoBubble: React.FC<{
 };
 
 /**
- * Логотип берётся из apps/web/public/cueme-logo.png (обычный <img>, не
- * Remotion <Img> — так рендер не падает, если файла ещё нет, а просто
- * показывает текстовую заглушку "CueMe").
+ * Логотип берётся из apps/web/public/cueme-logo.png.
+ * staticFile() сама подбирает правильный путь: "/cueme-logo.png" в живом
+ * превью (Next.js раздаёт public/ из корня) и "/public/cueme-logo.png"
+ * внутри собранного для рендера бандла Remotion (там public/ — подпапка).
+ * Обычный <img>, не Remotion <Img> — так рендер не падает, если файла ещё
+ * нет, а просто показывает текстовую заглушку "CueMe".
  */
 const SuggestionLogo: React.FC = () => {
   const [failed, setFailed] = useState(false);
@@ -158,7 +162,7 @@ const SuggestionLogo: React.FC = () => {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src="/cueme-logo.png"
+      src={staticFile("cueme-logo.png")}
       alt="CueMe"
       style={{ height: SUGGESTION_LOGO_HEIGHT }}
       onError={() => setFailed(true)}
