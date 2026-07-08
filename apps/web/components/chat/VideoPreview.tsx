@@ -54,6 +54,10 @@ export function VideoPreview() {
   >([]);
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Меняется на каждую успешную сборку — форсирует remount Player, чтобы он
+  // гарантированно подхватил новые inputProps/durationInFrames/initialFrame,
+  // а не оставался на старом кадре от прошлой сборки
+  const [buildVersion, setBuildVersion] = useState(0);
 
   useEffect(() => {
     // перезапрашиваем список при каждой смене выбора — если фон только что
@@ -138,6 +142,7 @@ export function VideoPreview() {
           ? { text: suggestion.text.trim(), audioUrl: suggestion.audioUrl }
           : null
       );
+      setBuildVersion((v) => v + 1);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -208,6 +213,7 @@ export function VideoPreview() {
       <CardContent className="flex flex-col items-center gap-4">
         {timings ? (
           <Player
+            key={buildVersion}
             component={ChatVideo}
             inputProps={{
               messages,
@@ -218,6 +224,14 @@ export function VideoPreview() {
               background: backgroundContent,
             }}
             durationInFrames={totalDurationInFrames(timings, suggestionTiming)}
+            // Открываем превью не на пустом кадре 0 (окно чата ещё не выросло),
+            // а сразу на моменте, когда вся переписка уже показана — саму
+            // анимацию роста можно посмотреть, перемотав плеер назад
+            initialFrame={Math.max(
+              totalDurationInFrames(timings, suggestionTiming) -
+                Math.round(1.3 * VIDEO_FPS),
+              0
+            )}
             fps={VIDEO_FPS}
             compositionWidth={VIDEO_WIDTH}
             compositionHeight={VIDEO_HEIGHT}
