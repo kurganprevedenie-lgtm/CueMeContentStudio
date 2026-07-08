@@ -6,7 +6,7 @@ export type ChatHeaderStyle = "profile" | "compact";
 // Геометрия окна переписки: небольшая карточка в верхней части кадра,
 // а не на весь экран — снизу и по бокам должно быть видно BackgroundVideo.
 const CARD_WIDTH_RATIO = 0.87; // 87% ширины кадра (в требуемых 85–90%)
-const CARD_HEIGHT_RATIO = 0.4; // 40% высоты кадра (в требуемых 35–45%)
+const CARD_HEIGHT_RATIO = 0.8; // 80% высоты кадра — целевая (максимальная) высота карточки
 const CARD_TOP_MARGIN = 64; // отступ от самого верха кадра
 const CARD_BORDER_RADIUS = 44;
 
