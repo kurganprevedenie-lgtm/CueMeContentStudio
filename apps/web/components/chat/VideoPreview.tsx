@@ -56,6 +56,9 @@ export function VideoPreview() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // перезапрашиваем список при каждой смене выбора — если фон только что
+    // загрузили и тут же выбрали, список, полученный при монтировании,
+    // ещё не знал о нём
     fetch("/api/backgrounds")
       .then((r) => r.json())
       .then((data: { backgrounds: BackgroundVideoInfo[] }) =>
@@ -64,7 +67,7 @@ export function VideoPreview() {
       .catch(() => {
         // фон необязателен — если список не загрузился, просто не показываем видео-фон
       });
-  }, []);
+  }, [backgroundSettings.backgroundId]);
 
   // фон не завязан на тайминги сообщений — пересчитывается сразу при смене
   // выбора/громкости/затемнения, без нажатия «Собрать видео»
