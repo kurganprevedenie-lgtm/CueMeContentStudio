@@ -15,13 +15,14 @@ const HEADER_HEIGHT_PROFILE = 156;
 
 export interface ChatWindowCardLayout {
   width: number;
-  height: number;
+  /** Целевая (максимальная) высота карточки — дальше она не растёт */
+  maxHeight: number;
   left: number;
   top: number;
   borderRadius: number;
   headerHeight: number;
-  /** Высота области сообщений внутри карточки (карточка минус шапка) */
-  contentHeight: number;
+  /** Максимальная высота области сообщений (карточка минус шапка) */
+  maxContentHeight: number;
 }
 
 /** Пересчитывает геометрию карточки под размер кадра композиции */
@@ -31,17 +32,17 @@ export function getChatWindowCardLayout(
   headerStyle: ChatHeaderStyle
 ): ChatWindowCardLayout {
   const width = Math.round(videoWidth * CARD_WIDTH_RATIO);
-  const height = Math.round(videoHeight * CARD_HEIGHT_RATIO);
+  const maxHeight = Math.round(videoHeight * CARD_HEIGHT_RATIO);
   const headerHeight =
     headerStyle === "profile" ? HEADER_HEIGHT_PROFILE : HEADER_HEIGHT_COMPACT;
   return {
     width,
-    height,
+    maxHeight,
     left: Math.round((videoWidth - width) / 2),
     top: CARD_TOP_MARGIN,
     borderRadius: CARD_BORDER_RADIUS,
     headerHeight,
-    contentHeight: height - headerHeight,
+    maxContentHeight: maxHeight - headerHeight,
   };
 }
 
@@ -141,6 +142,8 @@ export const ChatWindowCard: React.FC<{
   headerAvatarUrl?: string;
   videoWidth: number;
   videoHeight: number;
+  /** Текущая высота карточки на этот кадр — считается снаружи через currentCardHeight() */
+  height: number;
   children: React.ReactNode;
 }> = ({
   theme,
@@ -149,6 +152,7 @@ export const ChatWindowCard: React.FC<{
   headerAvatarUrl,
   videoWidth,
   videoHeight,
+  height,
   children,
 }) => {
   const layout = getChatWindowCardLayout(videoWidth, videoHeight, headerStyle);
@@ -160,7 +164,7 @@ export const ChatWindowCard: React.FC<{
         top: layout.top,
         left: layout.left,
         width: layout.width,
-        height: layout.height,
+        height,
         borderRadius: layout.borderRadius,
         overflow: "hidden",
         background: theme.container.background,
