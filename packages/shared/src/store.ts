@@ -43,6 +43,14 @@ interface ChatState {
   setBackgroundId: (backgroundId: string | null) => void;
   setBackgroundVolume: (volume: number) => void;
   setBackgroundOverlayOpacity: (overlayOpacity: number) => void;
+  /**
+   * Точка старта фрагмента (сек) для каждого фонового видео по его id —
+   * часть конфига проекта, а не отдельная сущность в хранилище файлов
+   */
+  backgroundTrimStartById: Record<string, number>;
+  setBackgroundTrimStart: (backgroundId: string, startSec: number) => void;
+  /** Вызывается после удаления видео из библиотеки — чистим ссылки на него */
+  forgetBackground: (backgroundId: string) => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -114,4 +122,24 @@ export const useChatStore = create<ChatState>((set) => ({
     set((state) => ({
       background: { ...state.background, overlayOpacity },
     })),
+  backgroundTrimStartById: {},
+  setBackgroundTrimStart: (backgroundId, startSec) =>
+    set((state) => ({
+      backgroundTrimStartById: {
+        ...state.backgroundTrimStartById,
+        [backgroundId]: startSec,
+      },
+    })),
+  forgetBackground: (backgroundId) =>
+    set((state) => {
+      const { [backgroundId]: _removed, ...restTrims } =
+        state.backgroundTrimStartById;
+      return {
+        backgroundTrimStartById: restTrims,
+        background:
+          state.background.backgroundId === backgroundId
+            ? { ...state.background, backgroundId: null }
+            : state.background,
+      };
+    }),
 }));

@@ -19,6 +19,12 @@ import type { BackgroundVideoContent } from "./types";
  * из apps/web/public. staticFile() пересчитывает его в правильный адрес и
  * для этого случая, и для собранного для рендера бандла Remotion (см. тот
  * же приём для логотипа подсказки в ChatVideo.tsx).
+ *
+ * trimBeforeFrames — стандартный механизм обрезки Remotion (проп trimBefore
+ * у OffthreadVideo, бывший startFrom), не ручной пересчёт кадров. Каждая
+ * итерация <Loop> начинает воспроизведение заново с этой точки, поэтому
+ * durationInFrames здесь — длительность именно выбранного фрагмента:
+ * зацикливается фрагмент, а не весь файл.
  */
 export const BackgroundVideo: React.FC<{
   background: BackgroundVideoContent;
@@ -29,6 +35,7 @@ export const BackgroundVideo: React.FC<{
         <OffthreadVideo
           src={staticFile(background.url)}
           volume={background.volume}
+          trimBefore={background.trimBeforeFrames}
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
       </Loop>

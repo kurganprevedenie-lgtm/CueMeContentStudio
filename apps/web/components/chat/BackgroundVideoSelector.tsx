@@ -1,13 +1,30 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2Icon, UploadIcon, XIcon } from "lucide-react";
+import {
+  Loader2Icon,
+  ScissorsIcon,
+  Trash2Icon,
+  UploadIcon,
+  XIcon,
+} from "lucide-react";
 import { useChatStore } from "@cueme/shared";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { VideoTrimmer } from "@/components/chat/VideoTrimmer";
 import { cn } from "@/lib/utils";
 
 interface BackgroundVideoInfo {
@@ -30,12 +47,21 @@ export function BackgroundVideoSelector() {
   const setBackgroundOverlayOpacity = useChatStore(
     (s) => s.setBackgroundOverlayOpacity
   );
+  const trimStartById = useChatStore((s) => s.backgroundTrimStartById);
+  const forgetBackground = useChatStore((s) => s.forgetBackground);
 
   const [backgrounds, setBackgrounds] = useState<BackgroundVideoInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<BackgroundVideoInfo | null>(
+    null
+  );
+  const [deleting, setDeleting] = useState(false);
+  const [trimTarget, setTrimTarget] = useState<BackgroundVideoInfo | null>(
+    null
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadBackgrounds = () => {
@@ -94,6 +120,29 @@ export function BackgroundVideoSelector() {
     if (file) void uploadFile(file);
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setError(null);
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        `/api/backgrounds/${encodeURIComponent(deleteTarget.id)}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      // обновляем список без перезагрузки страницы + чистим выбор/trim в сторе
+      setBackgrounds((prev) => prev.filter((b) => b.id !== deleteTarget.id));
+      forgetBackground(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -113,28 +162,61 @@ export function BackgroundVideoSelector() {
           >
             Без фона
           </button>
-          {backgrounds.map((bg) => (
-            <button
-              key={bg.id}
-              type="button"
-              onClick={() => setBackgroundId(bg.id)}
-              className={cn(
-                "relative aspect-[9/16] overflow-hidden rounded-lg border transition-colors",
-                backgroundId === bg.id
-                  ? "border-primary ring-2 ring-primary"
-                  : "border-border hover:opacity-80"
-              )}
-              title={bg.name}
-            >
-              <video
-                src={bg.url}
-                muted
-                playsInline
-                preload="metadata"
-                className="h-full w-full object-cover"
-              />
-            </button>
-          ))}
+          {backgrounds.map((bg) => {
+            const trimStart = trimStartById[bg.id] ?? 0;
+            return (
+              <div
+                key={bg.id}
+                className={cn(
+                  "group relative aspect-[9/16] overflow-hidden rounded-lg border transition-colors",
+                  backgroundId === bg.id
+                    ? "border-primary ring-2 ring-primary"
+                    : "border-border"
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => setBackgroundId(bg.id)}
+                  className="h-full w-full hover:opacity-80"
+                  title={bg.name}
+                >
+                  <video
+                    src={bg.url}
+                    muted
+                    playsInline
+                    preload="metadata"
+                    className="h-full w-full object-cover"
+                  />
+                </button>
+                {/* на десктопе иконки появляются при наведении, на тач-экранах видимы всегда */}
+                <div className="absolute top-1 right-1 flex gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon-xs"
+                    aria-label={`Выбрать фрагмент — ${bg.name}`}
+                    onClick={() => setTrimTarget(bg)}
+                  >
+                    <ScissorsIcon />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon-xs"
+                    aria-label={`Удалить — ${bg.name}`}
+                    onClick={() => setDeleteTarget(bg)}
+                  >
+                    <Trash2Icon />
+                  </Button>
+                </div>
+                {trimStart > 0 ? (
+                  <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">
+                    с {Math.round(trimStart)}с
+                  </span>
+                ) : null}
+              </div>
+            );
+          })}
           {loading ? (
             <div className="flex aspect-[9/16] items-center justify-center rounded-lg border border-dashed text-muted-foreground">
               <Loader2Icon className="size-4 animate-spin" />
@@ -227,6 +309,54 @@ export function BackgroundVideoSelector() {
               <XIcon /> Убрать фон
             </Button>
           </>
+        ) : null}
+
+        <AlertDialog
+          open={deleteTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) setDeleteTarget(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Удалить это фоновое видео?</AlertDialogTitle>
+              <AlertDialogDescription>
+                «{deleteTarget?.name}» будет удалено из библиотеки. Это
+                действие нельзя отменить.
+                {deleteTarget && deleteTarget.id === backgroundId
+                  ? " Это видео сейчас выбрано фоном текущего ролика — выбор сбросится."
+                  : ""}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Отмена</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={deleting}
+                onClick={handleDelete}
+              >
+                {deleting ? (
+                  <>
+                    <Loader2Icon className="size-4 animate-spin" /> Удаляю…
+                  </>
+                ) : (
+                  "Удалить"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {trimTarget ? (
+          <VideoTrimmer
+            backgroundId={trimTarget.id}
+            url={trimTarget.url}
+            durationSec={trimTarget.durationSec}
+            open
+            onOpenChange={(open) => {
+              if (!open) setTrimTarget(null);
+            }}
+          />
         ) : null}
       </CardContent>
     </Card>
