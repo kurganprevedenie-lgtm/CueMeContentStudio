@@ -1,5 +1,7 @@
 import type { ChatTheme, Message } from "@cueme/shared";
 
+import type { ChatHeaderStyle } from "./ChatWindowCard";
+
 /**
  * Тайминг одного сообщения в видео.
  * durationSec считается из реальной длительности аудиофайла
@@ -54,6 +56,8 @@ export type ChatVideoProps = {
   suggestion?: SuggestionContent | null;
   suggestionTiming?: SuggestionTiming | null;
   background?: BackgroundVideoContent | null;
+  /** Стиль шапки окна переписки, по умолчанию "compact" (карточка небольшая) */
+  headerStyle?: ChatHeaderStyle;
 };
 
 export const VIDEO_FPS = 30;
