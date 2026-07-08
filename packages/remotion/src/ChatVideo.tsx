@@ -13,12 +13,14 @@ import {
 import type { ChatTheme, Message } from "@cueme/shared";
 
 import { BackgroundVideo } from "./BackgroundVideo";
+import { ChatWindowCard } from "./ChatWindowCard";
 import type {
   ChatVideoProps,
   MessageTiming,
   SuggestionContent,
   SuggestionTiming,
 } from "./types";
+import { VIDEO_HEIGHT, VIDEO_WIDTH } from "./types";
 
 // Размеры под кадр 1080x1920 (примерно x2.7 от браузерного превью)
 const BUBBLE_FONT_SIZE = 48;
@@ -27,6 +29,12 @@ const AVATAR_SIZE = 92;
 const SIDE_PADDING = 48;
 const SUGGESTION_FONT_SIZE = 56;
 const SUGGESTION_LOGO_HEIGHT = 140;
+
+// Внутренние отступы области сообщений внутри окна переписки (карточка
+// заметно уже полного кадра, поэтому поля меньше, чем раньше)
+const CARD_CONTENT_SIDE_PADDING = 28;
+const CARD_CONTENT_TOP_PADDING = 20;
+const CARD_CONTENT_BOTTOM_PADDING = 24;
 
 const VideoBubble: React.FC<{
   message: Message;
@@ -253,12 +261,19 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
   suggestion,
   suggestionTiming,
   background,
+  headerStyle,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
   const messageById = new Map(messages.map((m) => [m.id, m]));
   const visible = timings.filter((t) => frame >= Math.floor(t.startSec * fps));
+
+  // Шапка окна переписки показывает левого собеседника (условно — «контакт»,
+  // не «я»): берём его имя/аватар из первого сообщения слева, без изменений
+  // в схеме Message
+  const headerMessage =
+    messages.find((m) => m.side === "left") ?? messages[0];
 
   return (
     <AbsoluteFill
@@ -269,30 +284,41 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
       }}
     >
       {background ? <BackgroundVideo background={background} /> : null}
-      <AbsoluteFill
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          // сообщения появляются сверху кадра и растут вниз, как обычный текст
-          justifyContent: "flex-start",
-          gap: 36,
-          padding: `140px ${SIDE_PADDING}px 60px`,
-          overflow: "hidden",
-        }}
+      <ChatWindowCard
+        theme={theme}
+        headerStyle={headerStyle ?? "compact"}
+        headerName={headerMessage?.sender ?? "Chat"}
+        headerAvatarUrl={headerMessage?.avatarUrl}
+        videoWidth={VIDEO_WIDTH}
+        videoHeight={VIDEO_HEIGHT}
       >
-        {visible.map((t) => {
-          const message = messageById.get(t.id);
-          if (!message) return null;
-          return (
-            <VideoBubble
-              key={t.id}
-              message={message}
-              theme={theme}
-              appearFrame={Math.floor(t.startSec * fps)}
-            />
-          );
-        })}
-      </AbsoluteFill>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            // сообщения появляются сверху окна и растут вниз, как обычный текст
+            justifyContent: "flex-start",
+            gap: 24,
+            width: "100%",
+            height: "100%",
+            padding: `${CARD_CONTENT_TOP_PADDING}px ${CARD_CONTENT_SIDE_PADDING}px ${CARD_CONTENT_BOTTOM_PADDING}px`,
+            overflow: "hidden",
+          }}
+        >
+          {visible.map((t) => {
+            const message = messageById.get(t.id);
+            if (!message) return null;
+            return (
+              <VideoBubble
+                key={t.id}
+                message={message}
+                theme={theme}
+                appearFrame={Math.floor(t.startSec * fps)}
+              />
+            );
+          })}
+        </div>
+      </ChatWindowCard>
       {timings.map((t: MessageTiming) => {
         const message = messageById.get(t.id);
         if (!message?.audioUrl) return null;
