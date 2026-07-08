@@ -12,8 +12,16 @@ import {
 } from "remotion";
 import type { ChatTheme, Message } from "@cueme/shared";
 
+import {
+  BUBBLE_FONT_SIZE,
+  CARD_CONTENT_BOTTOM_PADDING,
+  CARD_CONTENT_TOP_PADDING,
+  LABEL_FONT_SIZE,
+  MESSAGE_ROW_GAP,
+} from "./bubbleMetrics";
 import { BackgroundVideo } from "./BackgroundVideo";
-import { ChatWindowCard } from "./ChatWindowCard";
+import { currentCardHeight } from "./cardHeight";
+import { ChatWindowCard, getChatWindowCardLayout } from "./ChatWindowCard";
 import type {
   ChatVideoProps,
   MessageTiming,
@@ -23,18 +31,14 @@ import type {
 import { VIDEO_HEIGHT, VIDEO_WIDTH } from "./types";
 
 // Размеры под кадр 1080x1920 (примерно x2.7 от браузерного превью)
-const BUBBLE_FONT_SIZE = 48;
-const LABEL_FONT_SIZE = 32;
 const AVATAR_SIZE = 92;
 const SIDE_PADDING = 48;
 const SUGGESTION_FONT_SIZE = 56;
 const SUGGESTION_LOGO_HEIGHT = 140;
 
-// Внутренние отступы области сообщений внутри окна переписки (карточка
-// заметно уже полного кадра, поэтому поля меньше, чем раньше)
+// Внутренний боковой отступ области сообщений (карточка заметно уже
+// полного кадра, поэтому поля меньше, чем раньше)
 const CARD_CONTENT_SIDE_PADDING = 28;
-const CARD_CONTENT_TOP_PADDING = 20;
-const CARD_CONTENT_BOTTOM_PADDING = 24;
 
 const VideoBubble: React.FC<{
   message: Message;
@@ -275,6 +279,21 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
   const headerMessage =
     messages.find((m) => m.side === "left") ?? messages[0];
 
+  const resolvedHeaderStyle = headerStyle ?? "compact";
+  const cardLayout = getChatWindowCardLayout(
+    VIDEO_WIDTH,
+    VIDEO_HEIGHT,
+    resolvedHeaderStyle
+  );
+  const cardHeight = currentCardHeight({
+    frame,
+    fps,
+    messages,
+    timings,
+    headerHeight: cardLayout.headerHeight,
+    maxCardHeight: cardLayout.maxHeight,
+  });
+
   return (
     <AbsoluteFill
       style={{
@@ -286,11 +305,12 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
       {background ? <BackgroundVideo background={background} /> : null}
       <ChatWindowCard
         theme={theme}
-        headerStyle={headerStyle ?? "compact"}
+        headerStyle={resolvedHeaderStyle}
         headerName={headerMessage?.sender ?? "Chat"}
         headerAvatarUrl={headerMessage?.avatarUrl}
         videoWidth={VIDEO_WIDTH}
         videoHeight={VIDEO_HEIGHT}
+        height={cardHeight}
       >
         <div
           style={{
@@ -298,7 +318,7 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
             flexDirection: "column",
             // сообщения появляются сверху окна и растут вниз, как обычный текст
             justifyContent: "flex-start",
-            gap: 24,
+            gap: MESSAGE_ROW_GAP,
             width: "100%",
             height: "100%",
             padding: `${CARD_CONTENT_TOP_PADDING}px ${CARD_CONTENT_SIDE_PADDING}px ${CARD_CONTENT_BOTTOM_PADDING}px`,
