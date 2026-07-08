@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { nodeReader } from "@remotion/media-parser/node";
@@ -115,4 +115,33 @@ export async function saveBackgroundUpload(
     );
   }
   return info;
+}
+
+export class BackgroundNotFoundError extends Error {}
+
+/**
+ * Удаляет фоновое видео из хранилища. id — имя файла внутри
+ * public/backgrounds; всё, что похоже на путь (слэши, "..", абсолютные
+ * пути), отклоняется, чтобы через API нельзя было удалить произвольный
+ * файл на диске.
+ */
+export async function deleteBackgroundVideo(id: string): Promise<void> {
+  if (
+    !id ||
+    id !== path.basename(id) ||
+    id.startsWith(".") ||
+    !ALLOWED_EXTENSIONS.has(path.extname(id).toLowerCase())
+  ) {
+    throw new BackgroundNotFoundError("Некорректный идентификатор видео");
+  }
+
+  const filePath = path.join(BACKGROUNDS_DIR, id);
+  try {
+    await stat(filePath);
+  } catch {
+    throw new BackgroundNotFoundError("Видео не найдено");
+  }
+
+  await rm(filePath);
+  cache.delete(id);
 }

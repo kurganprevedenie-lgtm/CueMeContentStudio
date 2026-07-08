@@ -43,6 +43,9 @@ export function VideoPreview() {
   const theme = themes[themeId];
   const suggestion = useChatStore((s) => s.suggestion);
   const backgroundSettings = useChatStore((s) => s.background);
+  const backgroundTrimStartById = useChatStore(
+    (s) => s.backgroundTrimStartById
+  );
 
   const [timings, setTimings] = useState<MessageTiming[] | null>(null);
   const [suggestionTiming, setSuggestionTiming] =
@@ -81,16 +84,23 @@ export function VideoPreview() {
       (b) => b.id === backgroundSettings.backgroundId
     );
     if (!found) return null;
+    // если задан trim — зацикливаем именно фрагмент от точки старта до конца
+    const trimStartSec = Math.min(
+      backgroundTrimStartById[found.id] ?? 0,
+      Math.max(found.durationSec - 1, 0)
+    );
     return {
       url: found.url,
       durationInFrames: Math.max(
-        Math.round(found.durationSec * VIDEO_FPS),
+        Math.round((found.durationSec - trimStartSec) * VIDEO_FPS),
         1
       ),
       volume: backgroundSettings.volume,
       overlayOpacity: backgroundSettings.overlayOpacity,
+      trimBeforeFrames:
+        trimStartSec > 0 ? Math.round(trimStartSec * VIDEO_FPS) : undefined,
     };
-  }, [backgroundSettings, backgroundsList]);
+  }, [backgroundSettings, backgroundsList, backgroundTrimStartById]);
 
   type ExportState =
     | { status: "idle" }

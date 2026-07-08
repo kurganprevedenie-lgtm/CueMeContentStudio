@@ -36,11 +36,21 @@ export interface SuggestionContent {
  */
 export interface BackgroundVideoContent {
   url: string;
+  /**
+   * Длительность одного цикла зацикливания в кадрах. Если задан trim —
+   * это длительность именно выбранного фрагмента, не всего файла.
+   */
   durationInFrames: number;
   /** 0..1 */
   volume: number;
   /** 0..1 — затемнение поверх видео для читаемости пузырей */
   overlayOpacity: number;
+  /**
+   * Смещение точки старта внутри файла, в кадрах (проп trimBefore у
+   * OffthreadVideo; в Remotion 4 startFrom переименован в trimBefore).
+   * Не задан — видео с самого начала.
+   */
+  trimBeforeFrames?: number;
 }
 
 /**
