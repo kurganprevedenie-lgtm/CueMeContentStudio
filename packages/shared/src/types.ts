@@ -29,3 +29,13 @@ export interface Suggestion {
    */
   afterMessageId: string | null;
 }
+
+/** Фоновое видео (gameplay-заливка), выбранное для ролика */
+export interface BackgroundSettings {
+  /** id = имя файла в apps/web/public/backgrounds */
+  backgroundId: string | null;
+  /** 0..1 */
+  volume: number;
+  /** 0..1 — затемнение поверх видео для читаемости пузырей */
+  overlayOpacity: number;
+}

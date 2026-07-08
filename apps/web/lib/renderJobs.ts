@@ -7,6 +7,7 @@ import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition } from "@remotion/renderer";
 import type { ChatTheme, Message } from "@cueme/shared";
 import type {
+  BackgroundVideoContent,
   MessageTiming,
   SuggestionContent,
   SuggestionTiming,
@@ -76,6 +77,7 @@ export interface StartRenderInput {
   timings: MessageTiming[];
   suggestion?: SuggestionContent | null;
   suggestionTiming?: SuggestionTiming | null;
+  background?: BackgroundVideoContent | null;
 }
 
 export function startRender(input: StartRenderInput): RenderJob {
@@ -97,6 +99,7 @@ async function runRender(job: RenderJob, input: StartRenderInput) {
       timings: input.timings,
       suggestion: input.suggestion ?? null,
       suggestionTiming: input.suggestionTiming ?? null,
+      background: input.background ?? null,
     };
 
     const composition = await selectComposition({

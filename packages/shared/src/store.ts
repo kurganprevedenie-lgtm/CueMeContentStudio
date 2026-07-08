@@ -1,12 +1,23 @@
 import { create } from "zustand";
 
 import { defaultThemeId, type ThemeId } from "./themes";
-import type { Message, Participant, Suggestion } from "./types";
+import type {
+  BackgroundSettings,
+  Message,
+  Participant,
+  Suggestion,
+} from "./types";
 
 /** Переписка всегда между двумя участниками: participants[0] = левая сторона, participants[1] = правая */
 export type ParticipantIndex = 0 | 1;
 
 const emptySuggestion: Suggestion = { text: "", afterMessageId: null };
+
+const defaultBackground: BackgroundSettings = {
+  backgroundId: null,
+  volume: 0,
+  overlayOpacity: 0.3,
+};
 
 interface ChatState {
   messages: Message[];
@@ -15,6 +26,7 @@ interface ChatState {
   /** Голос ElevenLabs, выбранный для каждого отправителя (ключ — имя участника) */
   voiceBySender: Record<string, string>;
   suggestion: Suggestion;
+  background: BackgroundSettings;
   addMessage: (input: { participantIndex: ParticipantIndex; text: string }) => void;
   removeMessage: (id: string) => void;
   clearMessages: () => void;
@@ -28,6 +40,9 @@ interface ChatState {
   setSuggestionAudio: (audioUrl: string) => void;
   setSuggestionAnchor: (messageId: string | null) => void;
   clearSuggestionAudio: () => void;
+  setBackgroundId: (backgroundId: string | null) => void;
+  setBackgroundVolume: (volume: number) => void;
+  setBackgroundOverlayOpacity: (overlayOpacity: number) => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -36,6 +51,7 @@ export const useChatStore = create<ChatState>((set) => ({
   participants: [{ name: "Аня" }, { name: "Макс" }],
   voiceBySender: {},
   suggestion: emptySuggestion,
+  background: defaultBackground,
   addMessage: ({ participantIndex, text }) =>
     set((state) => {
       const participant = state.participants[participantIndex];
@@ -90,4 +106,12 @@ export const useChatStore = create<ChatState>((set) => ({
       const { audioUrl: _audioUrl, ...rest } = state.suggestion;
       return { suggestion: rest };
     }),
+  setBackgroundId: (backgroundId) =>
+    set((state) => ({ background: { ...state.background, backgroundId } })),
+  setBackgroundVolume: (volume) =>
+    set((state) => ({ background: { ...state.background, volume } })),
+  setBackgroundOverlayOpacity: (overlayOpacity) =>
+    set((state) => ({
+      background: { ...state.background, overlayOpacity },
+    })),
 }));

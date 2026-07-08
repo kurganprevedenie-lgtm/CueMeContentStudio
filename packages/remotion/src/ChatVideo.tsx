@@ -12,6 +12,7 @@ import {
 } from "remotion";
 import type { ChatTheme, Message } from "@cueme/shared";
 
+import { BackgroundVideo } from "./BackgroundVideo";
 import type {
   ChatVideoProps,
   MessageTiming,
@@ -251,6 +252,7 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
   timings,
   suggestion,
   suggestionTiming,
+  background,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -266,6 +268,7 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
         fontFamily: theme.fontFamily,
       }}
     >
+      {background ? <BackgroundVideo background={background} /> : null}
       <AbsoluteFill
         style={{
           display: "flex",
