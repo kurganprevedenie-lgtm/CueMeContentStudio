@@ -12,6 +12,10 @@ out/
 # builds / renders
 dist/
 *.mp4
+*.mov
+
+# загруженные фоновые видео (могут быть большими, не часть репозитория)
+/apps/web/public/backgrounds/
 
 # misc
 .DS_Store

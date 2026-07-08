@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Player } from "@remotion/player";
 import { getAudioDurationInSeconds } from "@remotion/media-utils";
 import { ClapperboardIcon, DownloadIcon, Loader2Icon } from "lucide-react";
@@ -11,6 +11,7 @@ import {
   VIDEO_HEIGHT,
   VIDEO_WIDTH,
   totalDurationInFrames,
+  type BackgroundVideoContent,
   type MessageTiming,
   type SuggestionContent,
   type SuggestionTiming,
@@ -30,19 +31,59 @@ const SUGGESTION_SILENT_DURATION_SEC = 2.5;
 /** Пауза до и после бейджа-подсказки, сек (место на fade in/out) */
 const SUGGESTION_GAP_SEC = 0.4;
 
+interface BackgroundVideoInfo {
+  id: string;
+  url: string;
+  durationSec: number;
+}
+
 export function VideoPreview() {
   const messages = useChatStore((s) => s.messages);
   const themeId = useChatStore((s) => s.themeId);
   const theme = themes[themeId];
   const suggestion = useChatStore((s) => s.suggestion);
+  const backgroundSettings = useChatStore((s) => s.background);
 
   const [timings, setTimings] = useState<MessageTiming[] | null>(null);
   const [suggestionTiming, setSuggestionTiming] =
     useState<SuggestionTiming | null>(null);
   const [suggestionContent, setSuggestionContent] =
     useState<SuggestionContent | null>(null);
+  const [backgroundsList, setBackgroundsList] = useState<
+    BackgroundVideoInfo[]
+  >([]);
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/backgrounds")
+      .then((r) => r.json())
+      .then((data: { backgrounds: BackgroundVideoInfo[] }) =>
+        setBackgroundsList(data.backgrounds ?? [])
+      )
+      .catch(() => {
+        // фон необязателен — если список не загрузился, просто не показываем видео-фон
+      });
+  }, []);
+
+  // фон не завязан на тайминги сообщений — пересчитывается сразу при смене
+  // выбора/громкости/затемнения, без нажатия «Собрать видео»
+  const backgroundContent = useMemo<BackgroundVideoContent | null>(() => {
+    if (!backgroundSettings.backgroundId) return null;
+    const found = backgroundsList.find(
+      (b) => b.id === backgroundSettings.backgroundId
+    );
+    if (!found) return null;
+    return {
+      url: found.url,
+      durationInFrames: Math.max(
+        Math.round(found.durationSec * VIDEO_FPS),
+        1
+      ),
+      volume: backgroundSettings.volume,
+      overlayOpacity: backgroundSettings.overlayOpacity,
+    };
+  }, [backgroundSettings, backgroundsList]);
 
   type ExportState =
     | { status: "idle" }
@@ -139,6 +180,7 @@ export function VideoPreview() {
           timings,
           suggestion: suggestionContent,
           suggestionTiming,
+          background: backgroundContent,
         }),
       });
       if (!res.ok) {
@@ -170,6 +212,7 @@ export function VideoPreview() {
               timings,
               suggestion: suggestionContent,
               suggestionTiming,
+              background: backgroundContent,
             }}
             durationInFrames={totalDurationInFrames(timings, suggestionTiming)}
             fps={VIDEO_FPS}

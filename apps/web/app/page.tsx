@@ -1,3 +1,4 @@
+import { BackgroundVideoSelector } from "@/components/chat/BackgroundVideoSelector";
 import { ChatContainer } from "@/components/chat/ChatContainer";
 import { MessageForm } from "@/components/chat/MessageForm";
 import { ParticipantsEditor } from "@/components/chat/ParticipantsEditor";
@@ -20,6 +21,7 @@ export default function Home() {
         <MessageForm />
         <VoicePanel />
         <SuggestionPanel />
+        <BackgroundVideoSelector />
       </section>
       <section className="flex flex-col gap-3">
         <ThemeSelector />

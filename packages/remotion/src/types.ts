@@ -27,6 +27,21 @@ export interface SuggestionContent {
 }
 
 /**
+ * Фоновое видео (gameplay-заливка) позади переписки.
+ * durationInFrames — реальная длительность одного цикла файла (из
+ * @remotion/media-parser, не оценка), нужна для зацикливания через <Loop>.
+ * Тайминг фона независим от таймингов сообщений/подсказки.
+ */
+export interface BackgroundVideoContent {
+  url: string;
+  durationInFrames: number;
+  /** 0..1 */
+  volume: number;
+  /** 0..1 — затемнение поверх видео для читаемости пузырей */
+  overlayOpacity: number;
+}
+
+/**
  * Props композиции ChatVideo.
  * ВНИМАНИЕ: контракт рендера — менять только по согласованию (см. ARCHITECTURE.md).
  * Объявлено через type (не interface) — Remotion требует совместимости
@@ -38,6 +53,7 @@ export type ChatVideoProps = {
   timings: MessageTiming[];
   suggestion?: SuggestionContent | null;
   suggestionTiming?: SuggestionTiming | null;
+  background?: BackgroundVideoContent | null;
 };
 
 export const VIDEO_FPS = 30;

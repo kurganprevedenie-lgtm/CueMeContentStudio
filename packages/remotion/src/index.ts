@@ -1,5 +1,6 @@
 export { ChatVideo } from "./ChatVideo";
 export { RemotionRoot } from "./Root";
+export { BackgroundVideo } from "./BackgroundVideo";
 export {
   VIDEO_FPS,
   VIDEO_WIDTH,
@@ -9,4 +10,5 @@ export {
   type MessageTiming,
   type SuggestionTiming,
   type SuggestionContent,
+  type BackgroundVideoContent,
 } from "./types";

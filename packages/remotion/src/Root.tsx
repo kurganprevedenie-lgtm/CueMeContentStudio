@@ -27,6 +27,7 @@ export const RemotionRoot: React.FC = () => {
           timings: [],
           suggestion: null,
           suggestionTiming: null,
+          background: null,
         } satisfies ChatVideoProps
       }
       calculateMetadata={({ props }) => ({

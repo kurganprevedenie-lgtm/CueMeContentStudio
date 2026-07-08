@@ -22,6 +22,9 @@ importers:
       '@remotion/bundler':
         specifier: ^4.0.0
         version: 4.0.484(@swc/helpers@0.5.15)(postcss@8.5.16)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@remotion/media-parser':
+        specifier: ^4.0.0
+        version: 4.0.484
       '@remotion/media-utils':
         specifier: ^4.0.0
         version: 4.0.484(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -7168,7 +7171,7 @@ snapshots:
 
   tapable@2.3.3: {}
 
-  terser-webpack-plugin@5.6.1(esbuild@0.28.1)(postcss@8.5.16)(webpack@5.105.0(postcss@8.5.16)):
+  terser-webpack-plugin@5.6.1(esbuild@0.28.1)(postcss@8.5.16)(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.16)):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
@@ -7381,7 +7384,7 @@ snapshots:
       neo-async: 2.6.2
       schema-utils: 4.3.3
       tapable: 2.3.3
-      terser-webpack-plugin: 5.6.1(esbuild@0.28.1)(postcss@8.5.16)(webpack@5.105.0(postcss@8.5.16))
+      terser-webpack-plugin: 5.6.1(esbuild@0.28.1)(postcss@8.5.16)(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.16))
       watchpack: 2.5.2
       webpack-sources: 3.5.0
     transitivePeerDependencies:
