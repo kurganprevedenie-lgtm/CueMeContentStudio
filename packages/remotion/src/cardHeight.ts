@@ -15,15 +15,25 @@ import type { MessageTiming } from "./types";
  * Грубая оценка ширины пузыря в символах на строку при BUBBLE_FONT_SIZE.
  * Remotion считает высоту кадра вне браузерного layout (без реального
  * замера текста), поэтому это ПРИБЛИЖЕНИЕ — только чтобы прикинуть,
- * насколько вырастить карточку, а не точный замер.
+ * насколько вырастить карточку, а не точный замер. Занижено намеренно
+ * (с запасом в сторону "лишняя строка"), чтобы не недооценивать перенос.
  */
-const CHARS_PER_LINE = 22;
+const CHARS_PER_LINE = 18;
+
+/**
+ * Небольшая систематическая погрешность оценки (шрифт/метрики отличаются
+ * от предположенных) на одном сообщении незаметна, но на цикле из
+ * нескольких сообщений накапливается и к концу цикла пузырь может вылезти
+ * за обрезанный край карточки. Запас 30% компенсирует именно это —
+ * лучше чуть более высокая карточка, чем обрезанный текст.
+ */
+const HEIGHT_ESTIMATE_SAFETY_MARGIN = 1.3;
 
 export function estimateMessageBlockHeight(text: string): number {
   const lines = Math.max(1, Math.ceil(text.length / CHARS_PER_LINE));
-  return (
-    SENDER_LABEL_BLOCK_HEIGHT + lines * BUBBLE_LINE_HEIGHT + BUBBLE_VERTICAL_PADDING
-  );
+  const raw =
+    SENDER_LABEL_BLOCK_HEIGHT + lines * BUBBLE_LINE_HEIGHT + BUBBLE_VERTICAL_PADDING;
+  return raw * HEIGHT_ESTIMATE_SAFETY_MARGIN;
 }
 
 /** Сколько секунд идёт анимация роста карточки на каждое новое сообщение */
