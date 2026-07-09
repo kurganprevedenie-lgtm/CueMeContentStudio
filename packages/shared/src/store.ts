@@ -15,6 +15,29 @@ export type ParticipantIndex = 0 | 1;
 
 const emptySuggestion: Suggestion = { text: "", afterMessageId: null };
 
+/**
+ * Настройки макета, сохранённые пользователем через кнопку «Сделать
+ * стандартом» — живут в localStorage браузера (бэкенда с пользовательскими
+ * настройками нет), поэтому доступны только на клиенте. При заходе на
+ * страницу конструктор сразу открывается с этими значениями вместо
+ * DEFAULT_LAYOUT_SETTINGS, а «Сбросить» откатывает к ним же, а не к
+ * исходным зашитым в код значениям.
+ */
+const LAYOUT_DEFAULTS_STORAGE_KEY = "cueme-layout-defaults";
+
+function loadUserDefaultLayoutSettings(): LayoutSettings {
+  if (typeof window === "undefined") return DEFAULT_LAYOUT_SETTINGS;
+  try {
+    const raw = window.localStorage.getItem(LAYOUT_DEFAULTS_STORAGE_KEY);
+    if (!raw) return DEFAULT_LAYOUT_SETTINGS;
+    return { ...DEFAULT_LAYOUT_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_LAYOUT_SETTINGS;
+  }
+}
+
+let userDefaultLayoutSettings = loadUserDefaultLayoutSettings();
+
 const defaultBackground: BackgroundSettings = {
   backgroundId: null,
   volume: 0,
@@ -60,9 +83,11 @@ interface ChatState {
   setMessageFontScale: (v: number) => void;
   setMessageSpacingScale: (v: number) => void;
   resetLayoutSettings: () => void;
+  /** Сохраняет текущие layoutSettings как новый стандарт (localStorage) — «Сбросить» будет откатывать сюда */
+  saveLayoutSettingsAsDefault: () => void;
 }
 
-export const useChatStore = create<ChatState>((set) => ({
+export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   themeId: defaultThemeId,
   participants: [{ name: "Аня" }, { name: "Макс" }],
@@ -151,7 +176,7 @@ export const useChatStore = create<ChatState>((set) => ({
             : state.background,
       };
     }),
-  layoutSettings: DEFAULT_LAYOUT_SETTINGS,
+  layoutSettings: userDefaultLayoutSettings,
   setWindowWidthRatio: (v) =>
     set((state) => ({
       layoutSettings: { ...state.layoutSettings, windowWidthRatio: v },
@@ -172,5 +197,18 @@ export const useChatStore = create<ChatState>((set) => ({
     set((state) => ({
       layoutSettings: { ...state.layoutSettings, messageSpacingScale: v },
     })),
-  resetLayoutSettings: () => set({ layoutSettings: DEFAULT_LAYOUT_SETTINGS }),
+  resetLayoutSettings: () => set({ layoutSettings: userDefaultLayoutSettings }),
+  saveLayoutSettingsAsDefault: () => {
+    userDefaultLayoutSettings = get().layoutSettings;
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(
+          LAYOUT_DEFAULTS_STORAGE_KEY,
+          JSON.stringify(userDefaultLayoutSettings)
+        );
+      } catch {
+        // localStorage недоступен (приватный режим и т.п.) — просто не сохраняем между сессиями
+      }
+    }
+  },
 }));

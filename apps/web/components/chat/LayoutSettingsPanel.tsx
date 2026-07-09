@@ -1,6 +1,7 @@
 "use client";
 
-import { RotateCcwIcon } from "lucide-react";
+import { useState } from "react";
+import { CheckIcon, RotateCcwIcon, StarIcon } from "lucide-react";
 import { useChatStore } from "@cueme/shared";
 
 import { Button } from "@/components/ui/button";
@@ -57,14 +58,42 @@ export function LayoutSettingsPanel() {
   const setMessageFontScale = useChatStore((s) => s.setMessageFontScale);
   const setMessageSpacingScale = useChatStore((s) => s.setMessageSpacingScale);
   const resetLayoutSettings = useChatStore((s) => s.resetLayoutSettings);
+  const saveLayoutSettingsAsDefault = useChatStore(
+    (s) => s.saveLayoutSettingsAsDefault
+  );
+  const [justSaved, setJustSaved] = useState(false);
+
+  const handleSaveAsDefault = () => {
+    saveLayoutSettingsAsDefault();
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 1500);
+  };
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Конструктор макета</CardTitle>
-        <Button type="button" variant="ghost" size="sm" onClick={resetLayoutSettings}>
-          <RotateCcwIcon /> Сбросить
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleSaveAsDefault}
+          >
+            {justSaved ? (
+              <>
+                <CheckIcon /> Сохранено
+              </>
+            ) : (
+              <>
+                <StarIcon /> Сделать стандартом
+              </>
+            )}
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={resetLayoutSettings}>
+            <RotateCcwIcon /> Сбросить
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <p className="text-xs text-muted-foreground">Окно переписки</p>
@@ -118,7 +147,9 @@ export function LayoutSettingsPanel() {
 
         <p className="text-xs text-muted-foreground">
           Изменения сразу видны в видео-превью справа — нажми «Обновить видео»,
-          если превью ещё не собрано.
+          если превью ещё не собрано. «Сделать стандартом» запоминает текущие
+          настройки в этом браузере — «Сбросить» и новые переписки будут
+          начинаться с них.
         </p>
       </CardContent>
     </Card>
