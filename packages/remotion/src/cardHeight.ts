@@ -5,13 +5,15 @@ import type { ScaledBubbleMetrics } from "./bubbleMetrics";
 import type { MessageTiming } from "./types";
 
 /**
- * Небольшая систематическая погрешность оценки (шрифт/метрики отличаются
- * от предположенных) на одном сообщении незаметна, но на цикле из
- * нескольких сообщений накапливается и к концу цикла пузырь может вылезти
- * за обрезанный край карточки. Запас 30% компенсирует именно это —
- * лучше чуть более высокая карточка, чем обрезанный текст.
+ * Единственная неопределённая часть оценки — число строк, на которые
+ * реально перенесётся текст (charsPerLine — грубая эвристика без замера
+ * реального рендера). Подпись имени и вертикальные паддинги — точные
+ * известные числа, накидывать запас на них незачем, это только раздувает
+ * карточку пустым местом ниже последнего сообщения. Запас 30% компенсирует
+ * именно ошибку переноса строк: лучше чуть более высокая карточка, чем
+ * обрезанный текст, если строк на самом деле окажется больше расчётных.
  */
-const HEIGHT_ESTIMATE_SAFETY_MARGIN = 1.3;
+const LINE_COUNT_SAFETY_MARGIN = 1.3;
 
 /**
  * showLabel=false — сообщение идёт подряд от того же отправителя, что и
@@ -25,11 +27,11 @@ export function estimateMessageBlockHeight(
   metrics: ScaledBubbleMetrics
 ): number {
   const lines = Math.max(1, Math.ceil(text.length / metrics.charsPerLine));
-  const raw =
+  return (
     (showLabel ? metrics.senderLabelBlockHeight : 0) +
-    lines * metrics.bubbleLineHeight +
-    metrics.bubbleVerticalPaddingTotal;
-  return raw * HEIGHT_ESTIMATE_SAFETY_MARGIN;
+    lines * metrics.bubbleLineHeight * LINE_COUNT_SAFETY_MARGIN +
+    metrics.bubbleVerticalPaddingTotal
+  );
 }
 
 /** Сколько секунд идёт анимация роста карточки на каждое новое сообщение */
