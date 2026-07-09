@@ -5,7 +5,7 @@ import path from "node:path";
 
 import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition } from "@remotion/renderer";
-import type { ChatTheme, Message } from "@cueme/shared";
+import type { ChatTheme, LayoutSettings, Message } from "@cueme/shared";
 import type {
   BackgroundVideoContent,
   MessageTiming,
@@ -78,6 +78,7 @@ export interface StartRenderInput {
   suggestion?: SuggestionContent | null;
   suggestionTiming?: SuggestionTiming | null;
   background?: BackgroundVideoContent | null;
+  layout?: LayoutSettings | null;
 }
 
 export function startRender(input: StartRenderInput): RenderJob {
@@ -100,6 +101,7 @@ async function runRender(job: RenderJob, input: StartRenderInput) {
       suggestion: input.suggestion ?? null,
       suggestionTiming: input.suggestionTiming ?? null,
       background: input.background ?? null,
+      layout: input.layout ?? null,
     };
 
     const composition = await selectComposition({

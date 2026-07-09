@@ -1,13 +1,13 @@
 import React from "react";
-import type { ChatTheme } from "@cueme/shared";
+import type { ChatTheme, LayoutSettings } from "@cueme/shared";
 
 export type ChatHeaderStyle = "profile" | "compact";
 
 // Геометрия окна переписки: небольшая карточка в верхней части кадра,
 // а не на весь экран — снизу и по бокам должно быть видно BackgroundVideo.
-const CARD_WIDTH_RATIO = 0.87; // 87% ширины кадра (в требуемых 85–90%)
-const CARD_HEIGHT_RATIO = 0.4; // 40% высоты кадра — целевая (максимальная) высота карточки
-const CARD_TOP_MARGIN_RATIO = 0.2; // отступ от верха кадра — 20% высоты кадра
+// Доли ширины/высоты/отступа сверху настраиваются пользователем через
+// LayoutSettings (см. getChatWindowCardLayout) — здесь остаётся только то,
+// что НЕ вынесено в конструктор.
 const CARD_BORDER_RADIUS = 44;
 
 const HEADER_HEIGHT_COMPACT = 84;
@@ -25,21 +25,22 @@ export interface ChatWindowCardLayout {
   maxContentHeight: number;
 }
 
-/** Пересчитывает геометрию карточки под размер кадра композиции */
+/** Пересчитывает геометрию карточки под размер кадра композиции и настройки пользователя */
 export function getChatWindowCardLayout(
   videoWidth: number,
   videoHeight: number,
-  headerStyle: ChatHeaderStyle
+  headerStyle: ChatHeaderStyle,
+  layout: LayoutSettings
 ): ChatWindowCardLayout {
-  const width = Math.round(videoWidth * CARD_WIDTH_RATIO);
-  const maxHeight = Math.round(videoHeight * CARD_HEIGHT_RATIO);
+  const width = Math.round(videoWidth * layout.windowWidthRatio);
+  const maxHeight = Math.round(videoHeight * layout.windowHeightRatio);
   const headerHeight =
     headerStyle === "profile" ? HEADER_HEIGHT_PROFILE : HEADER_HEIGHT_COMPACT;
   return {
     width,
     maxHeight,
     left: Math.round((videoWidth - width) / 2),
-    top: Math.round(videoHeight * CARD_TOP_MARGIN_RATIO),
+    top: Math.round(videoHeight * layout.windowTopMarginRatio),
     borderRadius: CARD_BORDER_RADIUS,
     headerHeight,
     maxContentHeight: maxHeight - headerHeight,
@@ -142,6 +143,7 @@ export const ChatWindowCard: React.FC<{
   headerAvatarUrl?: string;
   videoWidth: number;
   videoHeight: number;
+  layoutSettings: LayoutSettings;
   /** Текущая высота карточки на этот кадр — считается снаружи через currentCardHeight() */
   height: number;
   children: React.ReactNode;
@@ -152,10 +154,16 @@ export const ChatWindowCard: React.FC<{
   headerAvatarUrl,
   videoWidth,
   videoHeight,
+  layoutSettings,
   height,
   children,
 }) => {
-  const layout = getChatWindowCardLayout(videoWidth, videoHeight, headerStyle);
+  const layout = getChatWindowCardLayout(
+    videoWidth,
+    videoHeight,
+    headerStyle,
+    layoutSettings
+  );
 
   return (
     <div

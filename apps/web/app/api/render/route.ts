@@ -4,8 +4,15 @@ import { startRender } from "@/lib/renderJobs";
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { messages, theme, timings, suggestion, suggestionTiming, background } =
-    body ?? {};
+  const {
+    messages,
+    theme,
+    timings,
+    suggestion,
+    suggestionTiming,
+    background,
+    layout,
+  } = body ?? {};
 
   if (!Array.isArray(messages) || !theme || !Array.isArray(timings)) {
     return NextResponse.json(
@@ -23,6 +30,7 @@ export async function POST(request: Request) {
     suggestion: suggestion ?? null,
     suggestionTiming: suggestionTiming ?? null,
     background: background ?? null,
+    layout: layout ?? null,
   });
 
   return NextResponse.json({ jobId: job.id, status: job.status });
