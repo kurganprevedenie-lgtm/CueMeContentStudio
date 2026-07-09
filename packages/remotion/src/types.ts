@@ -1,4 +1,4 @@
-import type { ChatTheme, Message } from "@cueme/shared";
+import type { ChatTheme, LayoutSettings, Message } from "@cueme/shared";
 
 import type { ChatHeaderStyle } from "./ChatWindowCard";
 
@@ -68,6 +68,8 @@ export type ChatVideoProps = {
   background?: BackgroundVideoContent | null;
   /** Стиль шапки окна переписки, по умолчанию "compact" (карточка небольшая) */
   headerStyle?: ChatHeaderStyle;
+  /** Настраиваемые размер/отступы окна и сообщений — не задано = DEFAULT_LAYOUT_SETTINGS */
+  layout?: LayoutSettings | null;
 };
 
 export const VIDEO_FPS = 30;

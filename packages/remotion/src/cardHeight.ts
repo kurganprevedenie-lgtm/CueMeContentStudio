@@ -1,25 +1,8 @@
 import { interpolate } from "remotion";
 import type { Message } from "@cueme/shared";
 
-import {
-  BUBBLE_LINE_HEIGHT,
-  BUBBLE_VERTICAL_PADDING,
-  CARD_CONTENT_BOTTOM_PADDING,
-  CARD_CONTENT_TOP_PADDING,
-  MESSAGE_ROW_GAP,
-  MESSAGE_ROW_GAP_SAME_SENDER,
-  SENDER_LABEL_BLOCK_HEIGHT,
-} from "./bubbleMetrics";
+import type { ScaledBubbleMetrics } from "./bubbleMetrics";
 import type { MessageTiming } from "./types";
-
-/**
- * Грубая оценка ширины пузыря в символах на строку при BUBBLE_FONT_SIZE.
- * Remotion считает высоту кадра вне браузерного layout (без реального
- * замера текста), поэтому это ПРИБЛИЖЕНИЕ — только чтобы прикинуть,
- * насколько вырастить карточку, а не точный замер. Занижено намеренно
- * (с запасом в сторону "лишняя строка"), чтобы не недооценивать перенос.
- */
-const CHARS_PER_LINE = 18;
 
 /**
  * Небольшая систематическая погрешность оценки (шрифт/метрики отличаются
@@ -38,13 +21,14 @@ const HEIGHT_ESTIMATE_SAFETY_MARGIN = 1.3;
  */
 export function estimateMessageBlockHeight(
   text: string,
-  showLabel = true
+  showLabel: boolean,
+  metrics: ScaledBubbleMetrics
 ): number {
-  const lines = Math.max(1, Math.ceil(text.length / CHARS_PER_LINE));
+  const lines = Math.max(1, Math.ceil(text.length / metrics.charsPerLine));
   const raw =
-    (showLabel ? SENDER_LABEL_BLOCK_HEIGHT : 0) +
-    lines * BUBBLE_LINE_HEIGHT +
-    BUBBLE_VERTICAL_PADDING;
+    (showLabel ? metrics.senderLabelBlockHeight : 0) +
+    lines * metrics.bubbleLineHeight +
+    metrics.bubbleVerticalPaddingTotal;
   return raw * HEIGHT_ESTIMATE_SAFETY_MARGIN;
 }
 
@@ -76,7 +60,8 @@ function computeCycles(
   fps: number,
   headerHeight: number,
   maxContentHeight: number,
-  maxCardHeight: number
+  maxCardHeight: number,
+  metrics: ScaledBubbleMetrics
 ): Cycle[] {
   const timingById = new Map(timings.map((t) => [t.id, t]));
   const shown = messages.filter((m) => timingById.has(m.id));
@@ -91,20 +76,21 @@ function computeCycles(
       current.messages.length > 0 && previousSenderInCycle === message.sender;
     const blockHeight = estimateMessageBlockHeight(
       message.text,
-      !sameSenderAsPrevious
+      !sameSenderAsPrevious,
+      metrics
     );
     const gapIfNotFirst =
       current.messages.length === 0
         ? 0
         : sameSenderAsPrevious
-          ? MESSAGE_ROW_GAP_SAME_SENDER
-          : MESSAGE_ROW_GAP;
+          ? metrics.messageRowGapSameSender
+          : metrics.messageRowGap;
     const projectedContent =
       rawContentHeight +
       blockHeight +
       gapIfNotFirst +
-      CARD_CONTENT_TOP_PADDING +
-      CARD_CONTENT_BOTTOM_PADDING;
+      metrics.cardContentTopPadding +
+      metrics.cardContentBottomPadding;
 
     // не первое в цикле и уже не помещается — начинаем новый цикл
     if (current.messages.length > 0 && projectedContent > maxContentHeight) {
@@ -118,16 +104,18 @@ function computeCycles(
     // первое сообщение цикла всегда с подписью и без отступа перед собой
     const isFirstInCycle = current.messages.length === 0;
     const finalBlockHeight = isFirstInCycle
-      ? estimateMessageBlockHeight(message.text, true)
+      ? estimateMessageBlockHeight(message.text, true, metrics)
       : blockHeight;
     const gap = isFirstInCycle
       ? 0
       : sameSenderAsPrevious
-        ? MESSAGE_ROW_GAP_SAME_SENDER
-        : MESSAGE_ROW_GAP;
+        ? metrics.messageRowGapSameSender
+        : metrics.messageRowGap;
     rawContentHeight += finalBlockHeight + gap;
     const contentWithPadding = Math.min(
-      rawContentHeight + CARD_CONTENT_TOP_PADDING + CARD_CONTENT_BOTTOM_PADDING,
+      rawContentHeight +
+        metrics.cardContentTopPadding +
+        metrics.cardContentBottomPadding,
       maxContentHeight
     );
 
@@ -152,6 +140,7 @@ export interface CardStateParams {
   headerHeight: number;
   /** Целевая (максимальная) высота карточки внутри одного цикла */
   maxCardHeight: number;
+  metrics: ScaledBubbleMetrics;
 }
 
 export interface CardState {
@@ -177,6 +166,7 @@ export function getCardState({
   timings,
   headerHeight,
   maxCardHeight,
+  metrics,
 }: CardStateParams): CardState {
   const maxContentHeight = Math.max(maxCardHeight - headerHeight, 0);
   const cycles = computeCycles(
@@ -185,7 +175,8 @@ export function getCardState({
     fps,
     headerHeight,
     maxContentHeight,
-    maxCardHeight
+    maxCardHeight,
+    metrics
   );
 
   // последний цикл, в котором уже есть хоть одно показанное сообщение

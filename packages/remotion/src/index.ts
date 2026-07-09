@@ -7,6 +7,10 @@ export {
   type ChatHeaderStyle,
 } from "./ChatWindowCard";
 export {
+  getScaledBubbleMetrics,
+  type ScaledBubbleMetrics,
+} from "./bubbleMetrics";
+export {
   VIDEO_FPS,
   VIDEO_WIDTH,
   VIDEO_HEIGHT,

@@ -3,7 +3,9 @@ export type {
   Participant,
   Suggestion,
   BackgroundSettings,
+  LayoutSettings,
 } from "./types";
+export { DEFAULT_LAYOUT_SETTINGS } from "./types";
 export { useChatStore, type ParticipantIndex } from "./store";
 export {
   themes,

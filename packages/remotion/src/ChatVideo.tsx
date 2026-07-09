@@ -10,16 +10,10 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import type { ChatTheme, Message } from "@cueme/shared";
+import type { ChatTheme, LayoutSettings, Message } from "@cueme/shared";
+import { DEFAULT_LAYOUT_SETTINGS } from "@cueme/shared";
 
-import {
-  BUBBLE_FONT_SIZE,
-  CARD_CONTENT_BOTTOM_PADDING,
-  CARD_CONTENT_TOP_PADDING,
-  LABEL_FONT_SIZE,
-  MESSAGE_ROW_GAP,
-  MESSAGE_ROW_GAP_SAME_SENDER,
-} from "./bubbleMetrics";
+import { getScaledBubbleMetrics, type ScaledBubbleMetrics } from "./bubbleMetrics";
 import { BackgroundVideo } from "./BackgroundVideo";
 import { getCardState } from "./cardHeight";
 import { ChatWindowCard, getChatWindowCardLayout } from "./ChatWindowCard";
@@ -31,15 +25,13 @@ import type {
 } from "./types";
 import { VIDEO_HEIGHT, VIDEO_WIDTH } from "./types";
 
-// Размеры под кадр 1080x1920 (примерно x2.7 от браузерного превью)
-const AVATAR_SIZE = 92;
+// Размеры под кадр 1080x1920 (примерно x2.7 от браузерного превью).
+// Размер/отступы сообщений настраиваются через LayoutSettings —
+// см. bubbleMetrics.ts/getScaledBubbleMetrics(); здесь остаётся только
+// то, что вне конструктора (боковые поля бейджа-подсказки и т.п.)
 const SIDE_PADDING = 48;
 const SUGGESTION_FONT_SIZE = 56;
 const SUGGESTION_LOGO_HEIGHT = 140;
-
-// Внутренний боковой отступ области сообщений (карточка заметно уже
-// полного кадра, поэтому поля меньше, чем раньше)
-const CARD_CONTENT_SIDE_PADDING = 28;
 
 const VideoBubble: React.FC<{
   message: Message;
@@ -49,7 +41,8 @@ const VideoBubble: React.FC<{
   showLabel: boolean;
   /** Доп. отступ сверху — полный, если сменился отправитель, иначе почти без него */
   marginTop: number;
-}> = ({ message, theme, appearFrame, showLabel, marginTop }) => {
+  metrics: ScaledBubbleMetrics;
+}> = ({ message, theme, appearFrame, showLabel, marginTop, metrics }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const isRight = message.side === "right";
@@ -86,8 +79,8 @@ const VideoBubble: React.FC<{
         <Img
           src={message.avatarUrl}
           style={{
-            width: AVATAR_SIZE,
-            height: AVATAR_SIZE,
+            width: metrics.avatarSize,
+            height: metrics.avatarSize,
             borderRadius: "50%",
             objectFit: "cover",
             flexShrink: 0,
@@ -96,8 +89,8 @@ const VideoBubble: React.FC<{
       ) : (
         <div
           style={{
-            width: AVATAR_SIZE,
-            height: AVATAR_SIZE,
+            width: metrics.avatarSize,
+            height: metrics.avatarSize,
             borderRadius: "50%",
             flexShrink: 0,
             display: "flex",
@@ -105,7 +98,7 @@ const VideoBubble: React.FC<{
             justifyContent: "center",
             background: "#9ca3af",
             color: "#ffffff",
-            fontSize: LABEL_FONT_SIZE + 6,
+            fontSize: metrics.labelFontSize + 6,
             fontWeight: 600,
           }}
         >
@@ -125,7 +118,7 @@ const VideoBubble: React.FC<{
           <span
             style={{
               color: theme.senderLabel,
-              fontSize: LABEL_FONT_SIZE,
+              fontSize: metrics.labelFontSize,
               padding: "0 8px",
             }}
           >
@@ -136,9 +129,9 @@ const VideoBubble: React.FC<{
           style={{
             background: bubble.background,
             color: bubble.text,
-            fontSize: BUBBLE_FONT_SIZE,
+            fontSize: metrics.bubbleFontSize,
             lineHeight: 1.35,
-            padding: "26px 38px",
+            padding: `${metrics.bubblePaddingVertical}px ${metrics.bubblePaddingHorizontal}px`,
             // Четыре отдельных угла вместо borderRadius+borderBottom*Radius —
             // React ругается на смешивание shorthand и longhand в одном style
             borderTopLeftRadius: cornerRadius,
@@ -274,6 +267,7 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
   suggestionTiming,
   background,
   headerStyle,
+  layout,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -287,10 +281,17 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
     messages.find((m) => m.side === "left") ?? messages[0];
 
   const resolvedHeaderStyle = headerStyle ?? "compact";
+  const resolvedLayout: LayoutSettings = layout ?? DEFAULT_LAYOUT_SETTINGS;
+  const metrics = getScaledBubbleMetrics(
+    resolvedLayout.messageFontScale,
+    resolvedLayout.messageSpacingScale,
+    resolvedLayout.windowWidthRatio
+  );
   const cardLayout = getChatWindowCardLayout(
     VIDEO_WIDTH,
     VIDEO_HEIGHT,
-    resolvedHeaderStyle
+    resolvedHeaderStyle,
+    resolvedLayout
   );
   const cardState = getCardState({
     frame,
@@ -299,6 +300,7 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
     timings,
     headerHeight: cardLayout.headerHeight,
     maxCardHeight: cardLayout.maxHeight,
+    metrics,
   });
   const cardHeight = cardState.height;
   // показываем только сообщения текущего цикла — как только новое
@@ -325,6 +327,7 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
         headerAvatarUrl={headerMessage?.avatarUrl}
         videoWidth={VIDEO_WIDTH}
         videoHeight={VIDEO_HEIGHT}
+        layoutSettings={resolvedLayout}
         height={cardHeight}
       >
         <div
@@ -335,10 +338,10 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
             justifyContent: "flex-start",
             // базовый gap — тесный (для сообщений одного отправителя подряд),
             // при смене отправителя добавляем разницу через marginTop бабла
-            gap: MESSAGE_ROW_GAP_SAME_SENDER,
+            gap: metrics.messageRowGapSameSender,
             width: "100%",
             height: "100%",
-            padding: `${CARD_CONTENT_TOP_PADDING}px ${CARD_CONTENT_SIDE_PADDING}px ${CARD_CONTENT_BOTTOM_PADDING}px`,
+            padding: `${metrics.cardContentTopPadding}px ${metrics.cardContentSidePadding}px ${metrics.cardContentBottomPadding}px`,
             overflow: "hidden",
           }}
         >
@@ -359,8 +362,9 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
                 marginTop={
                   index === 0 || sameSenderAsPrevious
                     ? 0
-                    : MESSAGE_ROW_GAP - MESSAGE_ROW_GAP_SAME_SENDER
+                    : metrics.messageRowGap - metrics.messageRowGapSameSender
                 }
+                metrics={metrics}
               />
             );
           })}

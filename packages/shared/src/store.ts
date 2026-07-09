@@ -1,11 +1,13 @@
 import { create } from "zustand";
 
 import { defaultThemeId, type ThemeId } from "./themes";
-import type {
-  BackgroundSettings,
-  Message,
-  Participant,
-  Suggestion,
+import {
+  DEFAULT_LAYOUT_SETTINGS,
+  type BackgroundSettings,
+  type LayoutSettings,
+  type Message,
+  type Participant,
+  type Suggestion,
 } from "./types";
 
 /** Переписка всегда между двумя участниками: participants[0] = левая сторона, participants[1] = правая */
@@ -51,6 +53,13 @@ interface ChatState {
   setBackgroundTrimStart: (backgroundId: string, startSec: number) => void;
   /** Вызывается после удаления видео из библиотеки — чистим ссылки на него */
   forgetBackground: (backgroundId: string) => void;
+  layoutSettings: LayoutSettings;
+  setWindowWidthRatio: (v: number) => void;
+  setWindowHeightRatio: (v: number) => void;
+  setWindowTopMarginRatio: (v: number) => void;
+  setMessageFontScale: (v: number) => void;
+  setMessageSpacingScale: (v: number) => void;
+  resetLayoutSettings: () => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -142,4 +151,26 @@ export const useChatStore = create<ChatState>((set) => ({
             : state.background,
       };
     }),
+  layoutSettings: DEFAULT_LAYOUT_SETTINGS,
+  setWindowWidthRatio: (v) =>
+    set((state) => ({
+      layoutSettings: { ...state.layoutSettings, windowWidthRatio: v },
+    })),
+  setWindowHeightRatio: (v) =>
+    set((state) => ({
+      layoutSettings: { ...state.layoutSettings, windowHeightRatio: v },
+    })),
+  setWindowTopMarginRatio: (v) =>
+    set((state) => ({
+      layoutSettings: { ...state.layoutSettings, windowTopMarginRatio: v },
+    })),
+  setMessageFontScale: (v) =>
+    set((state) => ({
+      layoutSettings: { ...state.layoutSettings, messageFontScale: v },
+    })),
+  setMessageSpacingScale: (v) =>
+    set((state) => ({
+      layoutSettings: { ...state.layoutSettings, messageSpacingScale: v },
+    })),
+  resetLayoutSettings: () => set({ layoutSettings: DEFAULT_LAYOUT_SETTINGS }),
 }));
