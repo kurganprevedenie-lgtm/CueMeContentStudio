@@ -20,7 +20,7 @@ import {
   MESSAGE_ROW_GAP,
 } from "./bubbleMetrics";
 import { BackgroundVideo } from "./BackgroundVideo";
-import { currentCardHeight } from "./cardHeight";
+import { getCardState } from "./cardHeight";
 import { ChatWindowCard, getChatWindowCardLayout } from "./ChatWindowCard";
 import type {
   ChatVideoProps,
@@ -271,7 +271,6 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
   const { fps } = useVideoConfig();
 
   const messageById = new Map(messages.map((m) => [m.id, m]));
-  const visible = timings.filter((t) => frame >= Math.floor(t.startSec * fps));
 
   // Шапка окна переписки показывает левого собеседника (условно — «контакт»,
   // не «я»): берём его имя/аватар из первого сообщения слева, без изменений
@@ -285,7 +284,7 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
     VIDEO_HEIGHT,
     resolvedHeaderStyle
   );
-  const cardHeight = currentCardHeight({
+  const cardState = getCardState({
     frame,
     fps,
     messages,
@@ -293,6 +292,14 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
     headerHeight: cardLayout.headerHeight,
     maxCardHeight: cardLayout.maxHeight,
   });
+  const cardHeight = cardState.height;
+  // показываем только сообщения текущего цикла — как только новое
+  // сообщение не помещается, карточка сбрасывается и список начинается заново
+  const visible = timings.filter(
+    (t) =>
+      frame >= Math.floor(t.startSec * fps) &&
+      cardState.visibleMessageIds.has(t.id)
+  );
 
   return (
     <AbsoluteFill
