@@ -7,6 +7,7 @@ import {
   CARD_CONTENT_BOTTOM_PADDING,
   CARD_CONTENT_TOP_PADDING,
   MESSAGE_ROW_GAP,
+  MESSAGE_ROW_GAP_SAME_SENDER,
   SENDER_LABEL_BLOCK_HEIGHT,
 } from "./bubbleMetrics";
 import type { MessageTiming } from "./types";
@@ -29,10 +30,21 @@ const CHARS_PER_LINE = 18;
  */
 const HEIGHT_ESTIMATE_SAFETY_MARGIN = 1.3;
 
-export function estimateMessageBlockHeight(text: string): number {
+/**
+ * showLabel=false — сообщение идёт подряд от того же отправителя, что и
+ * предыдущее: подпись имени не рисуется (см. VideoBubble), поэтому и в
+ * оценке высоты её быть не должно — иначе карточка снова начнёт расти
+ * больше, чем нужно на самом деле.
+ */
+export function estimateMessageBlockHeight(
+  text: string,
+  showLabel = true
+): number {
   const lines = Math.max(1, Math.ceil(text.length / CHARS_PER_LINE));
   const raw =
-    SENDER_LABEL_BLOCK_HEIGHT + lines * BUBBLE_LINE_HEIGHT + BUBBLE_VERTICAL_PADDING;
+    (showLabel ? SENDER_LABEL_BLOCK_HEIGHT : 0) +
+    lines * BUBBLE_LINE_HEIGHT +
+    BUBBLE_VERTICAL_PADDING;
   return raw * HEIGHT_ESTIMATE_SAFETY_MARGIN;
 }
 
@@ -72,10 +84,21 @@ function computeCycles(
   const cycles: Cycle[] = [];
   let current: Cycle = { messages: [], stepHeights: [headerHeight] };
   let rawContentHeight = 0;
+  let previousSenderInCycle: string | null = null;
 
   for (const message of shown) {
-    const blockHeight = estimateMessageBlockHeight(message.text);
-    const gapIfNotFirst = current.messages.length === 0 ? 0 : MESSAGE_ROW_GAP;
+    const sameSenderAsPrevious =
+      current.messages.length > 0 && previousSenderInCycle === message.sender;
+    const blockHeight = estimateMessageBlockHeight(
+      message.text,
+      !sameSenderAsPrevious
+    );
+    const gapIfNotFirst =
+      current.messages.length === 0
+        ? 0
+        : sameSenderAsPrevious
+          ? MESSAGE_ROW_GAP_SAME_SENDER
+          : MESSAGE_ROW_GAP;
     const projectedContent =
       rawContentHeight +
       blockHeight +
@@ -88,10 +111,21 @@ function computeCycles(
       cycles.push(current);
       current = { messages: [], stepHeights: [headerHeight] };
       rawContentHeight = 0;
+      previousSenderInCycle = null;
     }
 
-    const gap = current.messages.length === 0 ? 0 : MESSAGE_ROW_GAP;
-    rawContentHeight += blockHeight + gap;
+    // пересчитываем на случай, если только что начался новый цикл —
+    // первое сообщение цикла всегда с подписью и без отступа перед собой
+    const isFirstInCycle = current.messages.length === 0;
+    const finalBlockHeight = isFirstInCycle
+      ? estimateMessageBlockHeight(message.text, true)
+      : blockHeight;
+    const gap = isFirstInCycle
+      ? 0
+      : sameSenderAsPrevious
+        ? MESSAGE_ROW_GAP_SAME_SENDER
+        : MESSAGE_ROW_GAP;
+    rawContentHeight += finalBlockHeight + gap;
     const contentWithPadding = Math.min(
       rawContentHeight + CARD_CONTENT_TOP_PADDING + CARD_CONTENT_BOTTOM_PADDING,
       maxContentHeight
@@ -104,6 +138,7 @@ function computeCycles(
     current.stepHeights.push(
       Math.min(headerHeight + contentWithPadding, maxCardHeight)
     );
+    previousSenderInCycle = message.sender;
   }
   cycles.push(current);
   return cycles;
