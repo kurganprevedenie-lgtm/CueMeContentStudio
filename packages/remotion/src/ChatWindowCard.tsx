@@ -6,8 +6,8 @@ export type ChatHeaderStyle = "profile" | "compact";
 // Геометрия окна переписки: небольшая карточка в верхней части кадра,
 // а не на весь экран — снизу и по бокам должно быть видно BackgroundVideo.
 const CARD_WIDTH_RATIO = 0.87; // 87% ширины кадра (в требуемых 85–90%)
-const CARD_HEIGHT_RATIO = 0.8; // 80% высоты кадра — целевая (максимальная) высота карточки
-const CARD_TOP_MARGIN = 64; // отступ от самого верха кадра
+const CARD_HEIGHT_RATIO = 0.4; // 40% высоты кадра — целевая (максимальная) высота карточки
+const CARD_TOP_MARGIN_RATIO = 0.2; // отступ от верха кадра — 20% высоты кадра
 const CARD_BORDER_RADIUS = 44;
 
 const HEADER_HEIGHT_COMPACT = 84;
@@ -39,7 +39,7 @@ export function getChatWindowCardLayout(
     width,
     maxHeight,
     left: Math.round((videoWidth - width) / 2),
-    top: CARD_TOP_MARGIN,
+    top: Math.round(videoHeight * CARD_TOP_MARGIN_RATIO),
     borderRadius: CARD_BORDER_RADIUS,
     headerHeight,
     maxContentHeight: maxHeight - headerHeight,

@@ -18,6 +18,7 @@ import {
   CARD_CONTENT_TOP_PADDING,
   LABEL_FONT_SIZE,
   MESSAGE_ROW_GAP,
+  MESSAGE_ROW_GAP_SAME_SENDER,
 } from "./bubbleMetrics";
 import { BackgroundVideo } from "./BackgroundVideo";
 import { getCardState } from "./cardHeight";
@@ -44,7 +45,11 @@ const VideoBubble: React.FC<{
   message: Message;
   theme: ChatTheme;
   appearFrame: number;
-}> = ({ message, theme, appearFrame }) => {
+  /** Скрываем подпись имени, если предыдущее сообщение — от того же отправителя */
+  showLabel: boolean;
+  /** Доп. отступ сверху — полный, если сменился отправитель, иначе почти без него */
+  marginTop: number;
+}> = ({ message, theme, appearFrame, showLabel, marginTop }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const isRight = message.side === "right";
@@ -71,6 +76,7 @@ const VideoBubble: React.FC<{
         alignItems: "flex-end",
         gap: 24,
         flexDirection: isRight ? "row-reverse" : "row",
+        marginTop,
         opacity,
         transform: `translateY(${translateY}px) scale(${scale})`,
         transformOrigin: isRight ? "bottom right" : "bottom left",
@@ -110,20 +116,22 @@ const VideoBubble: React.FC<{
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: 6,
+          gap: showLabel ? 6 : 0,
           maxWidth: "72%",
           alignItems: isRight ? "flex-end" : "flex-start",
         }}
       >
-        <span
-          style={{
-            color: theme.senderLabel,
-            fontSize: LABEL_FONT_SIZE,
-            padding: "0 8px",
-          }}
-        >
-          {message.sender}
-        </span>
+        {showLabel ? (
+          <span
+            style={{
+              color: theme.senderLabel,
+              fontSize: LABEL_FONT_SIZE,
+              padding: "0 8px",
+            }}
+          >
+            {message.sender}
+          </span>
+        ) : null}
         <div
           style={{
             background: bubble.background,
@@ -325,22 +333,34 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
             flexDirection: "column",
             // сообщения появляются сверху окна и растут вниз, как обычный текст
             justifyContent: "flex-start",
-            gap: MESSAGE_ROW_GAP,
+            // базовый gap — тесный (для сообщений одного отправителя подряд),
+            // при смене отправителя добавляем разницу через marginTop бабла
+            gap: MESSAGE_ROW_GAP_SAME_SENDER,
             width: "100%",
             height: "100%",
             padding: `${CARD_CONTENT_TOP_PADDING}px ${CARD_CONTENT_SIDE_PADDING}px ${CARD_CONTENT_BOTTOM_PADDING}px`,
             overflow: "hidden",
           }}
         >
-          {visible.map((t) => {
+          {visible.map((t, index) => {
             const message = messageById.get(t.id);
             if (!message) return null;
+            const previousMessage =
+              index > 0 ? messageById.get(visible[index - 1].id) : null;
+            const sameSenderAsPrevious =
+              previousMessage?.sender === message.sender;
             return (
               <VideoBubble
                 key={t.id}
                 message={message}
                 theme={theme}
                 appearFrame={Math.floor(t.startSec * fps)}
+                showLabel={!sameSenderAsPrevious}
+                marginTop={
+                  index === 0 || sameSenderAsPrevious
+                    ? 0
+                    : MESSAGE_ROW_GAP - MESSAGE_ROW_GAP_SAME_SENDER
+                }
               />
             );
           })}
