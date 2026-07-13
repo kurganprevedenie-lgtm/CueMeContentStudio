@@ -20,6 +20,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TikTokPublish } from "@/components/chat/TikTokPublish";
+import { YouTubePublish } from "@/components/chat/YouTubePublish";
 
 /** Пауза для сообщений без озвучки, сек (не оценка аудио — просто темп чтения) */
 const SILENT_DURATION_SEC = 1.8;
@@ -343,10 +344,16 @@ export function VideoPreview() {
             {exportState.status === "done" ? (
               // key=jobId — новый рендер размонтирует старый блок публикации
               // вместо сброса его состояния через эффект (см. TikTokPublish.tsx)
-              <TikTokPublish
-                key={exportState.jobId}
-                renderJobId={exportState.jobId}
-              />
+              <>
+                <YouTubePublish
+                  key={`youtube-${exportState.jobId}`}
+                  renderJobId={exportState.jobId}
+                />
+                <TikTokPublish
+                  key={exportState.jobId}
+                  renderJobId={exportState.jobId}
+                />
+              </>
             ) : null}
           </div>
         ) : null}
