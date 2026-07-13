@@ -17,6 +17,9 @@ dist/
 # загруженные фоновые видео (могут быть большими, не часть репозитория)
 /apps/web/public/backgrounds/
 
+# зашифрованные TikTok OAuth токены — секреты, не часть репозитория
+/apps/web/.data/
+
 # misc
 .DS_Store
 *.log

@@ -19,6 +19,7 @@ import {
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TikTokPublish } from "@/components/chat/TikTokPublish";
 
 /** Пауза для сообщений без озвучки, сек (не оценка аудио — просто темп чтения) */
 const SILENT_DURATION_SEC = 1.8;
@@ -319,6 +320,14 @@ export function VideoPreview() {
               Рендер идёт на сервере и может занять от десятков секунд до
               нескольких минут — страницу можно не перезагружать
             </p>
+            {exportState.status === "done" ? (
+              // key=jobId — новый рендер размонтирует старый блок публикации
+              // вместо сброса его состояния через эффект (см. TikTokPublish.tsx)
+              <TikTokPublish
+                key={exportState.jobId}
+                renderJobId={exportState.jobId}
+              />
+            ) : null}
           </div>
         ) : null}
       </CardContent>
