@@ -66,10 +66,17 @@ export async function GET(request: Request) {
     await saveTikTokTokens(tokens);
     return redirectHome(origin, { tiktok_connected: "1" });
   } catch (e: unknown) {
+    // Настоящую причину показываем как есть: exchangeCodeForTokens кладёт
+    // в TikTokApiError только текст ошибки от TikTok (без токенов), а прочие
+    // ошибки здесь — это сеть/шифрование/файл, в них тоже нет секретов.
+    // Иначе пользователь видит бесполезное "попробуйте ещё раз".
+    const detail = e instanceof Error ? e.message : String(e);
+    // в серверный лог — тоже без токенов (см. выше), чтобы видеть стек при отладке
+    console.error("[tiktok/callback] обмен кода на токены не удался:", detail);
     const message =
       e instanceof TikTokApiError
-        ? e.message
-        : "Не удалось подключить TikTok — попробуйте ещё раз";
+        ? detail
+        : `Не удалось подключить TikTok: ${detail}`;
     return redirectHome(origin, { tiktok_connect_error: message });
   }
 }
