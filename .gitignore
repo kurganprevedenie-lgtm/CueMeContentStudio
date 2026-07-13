@@ -20,6 +20,9 @@ dist/
 # зашифрованные TikTok OAuth токены — секреты, не часть репозитория
 /apps/web/.data/
 
+# локальный self-signed сертификат для `pnpm dev:https` (нужен для TikTok OAuth redirect_uri)
+/apps/web/certificates/
+
 # misc
 .DS_Store
 *.log
