@@ -127,6 +127,10 @@ export function VideoPreview() {
       clearTimeout(pollRef.current);
       pollRef.current = null;
     }
+    // Осознанный сброс состояния при смене входных данных рендера (и
+    // одновременная отмена поллинга) — не каскад ради каскада; функциональный
+    // апдейт не трогает состояние, если оно и так "idle", лишнего рендера нет.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setExportState((s) => (s.status === "idle" ? s : { status: "idle" }));
   }, [
     messages,
