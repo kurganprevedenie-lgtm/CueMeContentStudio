@@ -23,9 +23,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    // заголовок черновика не запрашиваем в UI — не часть текущего сценария,
-    // TikTok позволяет пустой title для SELF_ONLY-черновика
-    const job = await startTikTokPublish(renderJob.outputPath, "");
+    const job = await startTikTokPublish(renderJob.outputPath);
     return NextResponse.json(job);
   } catch (e: unknown) {
     if (e instanceof VideoTooLargeError) {

@@ -51,8 +51,7 @@ export class VideoTooLargeError extends Error {}
  * этого, а получает id задачи и опрашивает статус отдельно.
  */
 export async function startTikTokPublish(
-  filePath: string,
-  title: string
+  filePath: string
 ): Promise<TikTokPublishJob> {
   const { size } = await stat(filePath);
   if (size > MAX_VIDEO_BYTES) {
@@ -69,20 +68,15 @@ export async function startTikTokPublish(
   };
   jobs.set(job.id, job);
 
-  void runUpload(job, filePath, size, title);
+  void runUpload(job, filePath, size);
 
   return job;
 }
 
-async function runUpload(
-  job: TikTokPublishJob,
-  filePath: string,
-  size: number,
-  title: string
-) {
+async function runUpload(job: TikTokPublishJob, filePath: string, size: number) {
   try {
     const accessToken = await getValidAccessToken();
-    const { publishId, uploadUrl } = await initDraftUpload(accessToken, size, title);
+    const { publishId, uploadUrl } = await initDraftUpload(accessToken, size);
     job.publishId = publishId;
 
     await uploadVideoChunks(uploadUrl, filePath, size, (progress) => {

@@ -41,11 +41,11 @@ function readOAuthRedirectParams(): {
 
 /**
  * Блок публикации черновика в TikTok — появляется на странице готового
- * видео (после успешного экспорта .mp4). ВСЕГДА черновик: приложение не
- * прошло app review, поэтому единственный доступный privacy_level —
- * SELF_ONLY (см. lib/tiktokApi.ts). Формулировки в UI намеренно не
- * говорят "опубликовано" — до ручной публикации в приложении TikTok это
- * не так.
+ * видео (после успешного экспорта .mp4). ВСЕГДА черновик: видео уходит во
+ * «Входящие» TikTok-аккаунта автора (scope video.upload, не требует app
+ * review — см. lib/tiktokApi.ts), а не публикуется напрямую. Формулировки
+ * в UI намеренно не говорят "опубликовано" — до ручной публикации в
+ * приложении TikTok это не так.
  */
 export function TikTokPublish({ renderJobId }: { renderJobId: string }) {
   const [connected, setConnected] = useState<boolean | null>(

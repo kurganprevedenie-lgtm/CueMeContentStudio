@@ -12,10 +12,17 @@ import {
 // Если TikTok поменяет пути, менять нужно только здесь.
 const AUTHORIZE_URL = "https://www.tiktok.com/v2/auth/authorize/";
 const TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/";
-const INIT_URL = "https://open.tiktokapis.com/v2/post/publish/video/init/";
+// /post/publish/video/init/ (Direct Post, scope video.publish, privacy_level
+// в теле запроса) требует прохождения TikTok App Review, даже для
+// privacy_level: SELF_ONLY — а ревью просит демо-видео и рассмотрение может
+// занять дни. /post/publish/inbox/video/init/ (scope video.upload) даёт тот
+// же результат для нашей задачи — видео как черновик, видимый только
+// автору — но включён по умолчанию, без ревью: видео просто падает во
+// «Входящие» TikTok-аккаунта автора, откуда публикуется вручную.
+const INIT_URL = "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/";
 const STATUS_URL = "https://open.tiktokapis.com/v2/post/publish/status/fetch/";
 
-const SCOPE = "video.publish";
+const SCOPE = "video.upload";
 
 /** Приложение не подключено к TikTok (нет токенов) или подключение истекло */
 export class TikTokNotConnectedError extends Error {}
@@ -224,15 +231,15 @@ interface InitResponseBody {
 }
 
 /**
- * Шаг 1 — инициализация публикации черновика. privacy_level: SELF_ONLY —
- * единственный уровень, доступный приложениям без пройденного app review
- * (см. TikTok "Unaudited Client" ограничения) — контент виден только автору
- * в приложении TikTok, публичной публикации не происходит.
+ * Шаг 1 — инициализация загрузки черновика во «Входящие» TikTok-аккаунта
+ * автора (inbox/video/init/, scope video.upload). Никакого post_info —
+ * у этого эндпоинта нет privacy_level/title, TikTok сам считает всё, что
+ * сюда попадает, черновиком, видимым только автору, до тех пор пока он не
+ * отредактирует и не опубликует его вручную в приложении TikTok.
  */
 export async function initDraftUpload(
   accessToken: string,
-  videoSize: number,
-  title: string
+  videoSize: number
 ): Promise<{ publishId: string; uploadUrl: string }> {
   const { chunkSize, totalChunkCount } = planChunks(videoSize);
   const res = await fetchWithRetry(INIT_URL, {
@@ -242,10 +249,6 @@ export async function initDraftUpload(
       "Content-Type": "application/json; charset=UTF-8",
     },
     body: JSON.stringify({
-      post_info: {
-        title,
-        privacy_level: "SELF_ONLY",
-      },
       source_info: {
         source: "FILE_UPLOAD",
         video_size: videoSize,
