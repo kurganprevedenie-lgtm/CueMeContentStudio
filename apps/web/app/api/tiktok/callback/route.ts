@@ -6,8 +6,27 @@ import { saveTikTokTokens } from "@/lib/tiktokTokenStore";
 
 import { STATE_COOKIE } from "../auth/route";
 
-function redirectHome(requestUrl: string, params: Record<string, string>) {
-  const url = new URL("/", requestUrl);
+/**
+ * За туннелем (ngrok и т.п.) request.url отражает то, как Next видит
+ * соединение внутри (обычно localhost), а не публичный адрес, по которому
+ * реально зашёл браузер — редирект на "себя", построенный от request.url,
+ * в этом случае уводит на недоступный localhost вместо ngrok-домена.
+ * X-Forwarded-Host/Proto ngrok проставляет сам, доверяем им, если есть.
+ */
+function getPublicOrigin(request: Request): string {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  if (forwardedHost) {
+    const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https";
+    return `${forwardedProto}://${forwardedHost}`;
+  }
+  return new URL(request.url).origin;
+}
+
+function redirectHome(
+  origin: string,
+  params: Record<string, string>
+) {
+  const url = new URL("/", origin);
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
   }
@@ -22,6 +41,7 @@ function redirectHome(requestUrl: string, params: Record<string, string>) {
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
+  const origin = getPublicOrigin(request);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const oauthError =
@@ -32,10 +52,10 @@ export async function GET(request: Request) {
   cookieStore.delete(STATE_COOKIE);
 
   if (oauthError) {
-    return redirectHome(request.url, { tiktok_connect_error: oauthError });
+    return redirectHome(origin, { tiktok_connect_error: oauthError });
   }
   if (!code || !state || !expectedState || state !== expectedState) {
-    return redirectHome(request.url, {
+    return redirectHome(origin, {
       tiktok_connect_error:
         "Не удалось подтвердить запрос авторизации (state не совпадает) — попробуйте подключить TikTok ещё раз",
     });
@@ -44,12 +64,12 @@ export async function GET(request: Request) {
   try {
     const tokens = await exchangeCodeForTokens(code);
     await saveTikTokTokens(tokens);
-    return redirectHome(request.url, { tiktok_connected: "1" });
+    return redirectHome(origin, { tiktok_connected: "1" });
   } catch (e: unknown) {
     const message =
       e instanceof TikTokApiError
         ? e.message
         : "Не удалось подключить TikTok — попробуйте ещё раз";
-    return redirectHome(request.url, { tiktok_connect_error: message });
+    return redirectHome(origin, { tiktok_connect_error: message });
   }
 }
