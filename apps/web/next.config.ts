@@ -22,6 +22,10 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@cueme/shared", "@cueme/remotion"],
   // @remotion/renderer и @remotion/bundler запускают Chromium/ffmpeg — не бандлить
   serverExternalPackages: ["@remotion/renderer", "@remotion/bundler"],
+  // Next в dev-режиме по умолчанию блокирует запросы к dev-ассетам с чужого
+  // origin — нужно для тестирования TikTok OAuth через ngrok-туннель
+  // (адрес меняется при каждом перезапуске ngrok, поэтому wildcard)
+  allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok-free.dev"],
 };
 
 export default nextConfig;
