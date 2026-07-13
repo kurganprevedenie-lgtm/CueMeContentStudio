@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import { open } from "node:fs/promises";
 
 import {
@@ -49,7 +50,19 @@ function getRedirectUri(): string {
   return uri;
 }
 
-export function buildAuthorizeUrl(state: string): string {
+// TikTok требует PKCE (code_challenge) для новых/sandbox-приложений — без
+// него /v2/auth/authorize/ отвечает ошибкой "code_challenge" ещё до экрана
+// логина. code_verifier живёт в httpOnly-cookie между /auth и /callback
+// (см. STATE_COOKIE в app/api/tiktok/auth/route.ts).
+export function createCodeVerifier(): string {
+  return randomBytes(64).toString("base64url");
+}
+
+function codeChallengeFromVerifier(verifier: string): string {
+  return createHash("sha256").update(verifier).digest("base64url");
+}
+
+export function buildAuthorizeUrl(state: string, codeVerifier: string): string {
   const { clientKey } = getClientCredentials();
   const url = new URL(AUTHORIZE_URL);
   url.searchParams.set("client_key", clientKey);
@@ -57,6 +70,8 @@ export function buildAuthorizeUrl(state: string): string {
   url.searchParams.set("response_type", "code");
   url.searchParams.set("redirect_uri", getRedirectUri());
   url.searchParams.set("state", state);
+  url.searchParams.set("code_challenge", codeChallengeFromVerifier(codeVerifier));
+  url.searchParams.set("code_challenge_method", "S256");
   return url.toString();
 }
 
@@ -125,7 +140,10 @@ async function parseTokenResponse(res: Response): Promise<TikTokTokens> {
   };
 }
 
-export async function exchangeCodeForTokens(code: string): Promise<TikTokTokens> {
+export async function exchangeCodeForTokens(
+  code: string,
+  codeVerifier: string
+): Promise<TikTokTokens> {
   const { clientKey, clientSecret } = getClientCredentials();
   const res = await fetchWithRetry(TOKEN_URL, {
     method: "POST",
@@ -139,6 +157,7 @@ export async function exchangeCodeForTokens(code: string): Promise<TikTokTokens>
       code,
       grant_type: "authorization_code",
       redirect_uri: getRedirectUri(),
+      code_verifier: codeVerifier,
     }),
   });
   return parseTokenResponse(res);
