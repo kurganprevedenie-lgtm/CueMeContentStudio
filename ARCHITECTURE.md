@@ -66,12 +66,19 @@ Live-превью в браузере          Server action → ElevenLabs API
 - **Видео всегда уходит во «Входящие» TikTok-аккаунта автора, не публикуется напрямую** — эндпоинт `inbox/video/init/` (scope `video.upload`) специально не требует app review, в отличие от Direct Post (`video/init/`, scope `video.publish`, `privacy_level`) — тот путь пробовали первым, но TikTok не даёт включить `video.publish` без прохождения ревью (демо-видео, рассмотрение). В UI везде формулировки про "черновик", не "опубликовано"
 - См. `apps/web/lib/tiktokApi.ts`, `tiktokTokenStore.ts`, `tiktokJobs.ts`
 
+### Этап 7 — Публикация в YouTube ✅
+- OAuth 2.0 (`youtube.upload`, `access_type=offline&prompt=consent` — гарантирует `refresh_token`), токены — тем же зашифрованным файлом вне репозитория, что и TikTok (`apps/web/.data/youtube-tokens.enc`, AES-256-GCM через общий `lib/tokenCrypto.ts`, ключ из того же `TOKEN_ENCRYPTION_KEY`), `access_token` обновляется заранее (за 5 минут до истечения), не по факту 401
+- Resumable upload (`POST .../videos?uploadType=resumable` → `Location` → один `PUT` файла целиком, без чанкинга — видео из этого проекта короткие, в отличие от лимитов TikTok Content Posting API) → сразу `videoId`, отдельного шага проверки статуса на стороне YouTube не нужно
+- Публикация настоящая (не черновик, как у TikTok) — выбор приватности (`private`/`unlisted`/`public`) явно в форме публикации, по умолчанию `unlisted`
+- См. `apps/web/lib/youtubeApi.ts`, `youtubeTokenStore.ts`, `youtubeJobs.ts`
+
 ## Технические ограничения, которые стоит держать в голове
 
 - **Серверный рендер видео — тяжёлая операция.** Не заводить на обычных serverless-функциях с коротким таймаутом (Vercel functions таймаутятся). Нужен отдельный воркер или Remotion Lambda.
 - **Синхронизация звука с текстом** всегда идёт от реальной длительности аудиофайла, не от эвристики по длине текста.
 - **ElevenLabs тарифицируется по символам** — в UI должен быть индикатор примерной стоимости/остатка лимита перед генерацией, иначе тесты съедят кредиты незаметно.
 - **TikTok Content Posting API** пока используется только через inbox-эндпоинт (`video.upload`, черновик во «Входящих») — приложение не проходило app review. Прежде чем переключаться на Direct Post/`video.publish` или добавлять публичную публикацию, нужно отдельное согласование (и пройденный review на стороне TikTok, с демо-видео).
+- **Google OAuth consent screen в статусе Testing** — выданный `refresh_token` может протухать примерно раз в 7 дней, пока приложение не пройдёт верификацию Google (не нужна для личного использования, но тогда переподключаться к YouTube придётся периодически — `getValidAccessToken()` в этом случае просто просит переподключиться, не падает с generic-ошибкой).
 
 ## Не трогать без согласования
 

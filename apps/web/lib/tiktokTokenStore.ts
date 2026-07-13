@@ -1,6 +1,7 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+
+import { decrypt, encrypt } from "./tokenCrypto";
 
 // Токены никогда не должны попасть в git или в логи — храним зашифрованным
 // файлом вне репозитория (apps/web/.data/, см. .gitignore), а не в env
@@ -18,45 +19,6 @@ export interface TikTokTokens {
   refreshExpiresAt: number;
   openId: string;
   scope: string;
-}
-
-function getEncryptionKey(): Buffer {
-  const hex = process.env.TOKEN_ENCRYPTION_KEY;
-  if (!hex) {
-    throw new Error(
-      "TOKEN_ENCRYPTION_KEY не задан — добавь его в .env (см. .env.example) и перезапусти pnpm dev"
-    );
-  }
-  const key = Buffer.from(hex, "hex");
-  if (key.length !== 32) {
-    throw new Error(
-      "TOKEN_ENCRYPTION_KEY должен быть 32 байтами в hex-кодировке (64 символа)"
-    );
-  }
-  return key;
-}
-
-/** AES-256-GCM: iv(12) + authTag(16) + ciphertext — одним файлом */
-function encrypt(plaintext: string): Buffer {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", getEncryptionKey(), iv);
-  const ciphertext = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
-    cipher.final(),
-  ]);
-  return Buffer.concat([iv, cipher.getAuthTag(), ciphertext]);
-}
-
-function decrypt(data: Buffer): string {
-  const iv = data.subarray(0, 12);
-  const authTag = data.subarray(12, 28);
-  const ciphertext = data.subarray(28);
-  const decipher = createDecipheriv("aes-256-gcm", getEncryptionKey(), iv);
-  decipher.setAuthTag(authTag);
-  return Buffer.concat([
-    decipher.update(ciphertext),
-    decipher.final(),
-  ]).toString("utf8");
 }
 
 export async function saveTikTokTokens(tokens: TikTokTokens): Promise<void> {
