@@ -72,6 +72,13 @@ Live-превью в браузере          Server action → ElevenLabs API
 - Публикация настоящая (не черновик, как у TikTok) — выбор приватности (`private`/`unlisted`/`public`) явно в форме публикации, по умолчанию `unlisted`
 - См. `apps/web/lib/youtubeApi.ts`, `youtubeTokenStore.ts`, `youtubeJobs.ts`
 
+### Этап 8 — Публикация Reels в Instagram ✅
+- Instagram Content Publishing API живёт поверх Facebook Graph API — авторизация через Facebook Login for Business, публикация не в сам Instagram-аккаунт, а через Facebook-страницу, к которой привязан Instagram-аккаунт бизнеса/автора (Meta Business Suite)
+- OAuth: код → короткоживущий User Access Token → обмен на долгоживущий (`fb_exchange_token`, ~60 дней) → `GET /me/accounts` → первая страница с `instagram_business_account`. Отдельного `refresh_token` нет — продление тем же `fb_exchange_token` обменом текущего токена, с запасом в 5 дней до истечения (не по факту 401, как и TikTok/YouTube). Токены — тем же зашифрованным файлом вне репозитория (`apps/web/.data/instagram-tokens.enc`, тот же `lib/tokenCrypto.ts`/`TOKEN_ENCRYPTION_KEY`)
+- **Ключевое отличие от TikTok/YouTube: мы не заливаем байты сами.** Контейнер создаётся `POST /{ig-user-id}/media` с `media_type=REELS` и `video_url` — публичным HTTPS-адресом, который Meta сама скачивает на своей стороне (`GET /api/render/[jobId]/download`, тот же роут, что отдаёт файл на скачивание пользователю). Из-за этого self-signed сертификат `pnpm dev:https` (которого достаточно для TikTok OAuth-редиректа в браузере) здесь не подходит — видео должно быть доступно по-настоящему публично, в локальной разработке нужен туннель вроде ngrok
+- Статус контейнера (`status_code`: `IN_PROGRESS`/`FINISHED`/`ERROR`/`EXPIRED`) опрашивается тем же паттерном polling, что и TikTok; как только `FINISHED` — сразу `POST /{ig-user-id}/media_publish` и `GET /{media-id}?fields=permalink`, без отдельного действия пользователя
+- См. `apps/web/lib/instagramApi.ts`, `instagramTokenStore.ts`, `instagramJobs.ts`
+
 ## Технические ограничения, которые стоит держать в голове
 
 - **Серверный рендер видео — тяжёлая операция.** Не заводить на обычных serverless-функциях с коротким таймаутом (Vercel functions таймаутятся). Нужен отдельный воркер или Remotion Lambda.
@@ -79,6 +86,8 @@ Live-превью в браузере          Server action → ElevenLabs API
 - **ElevenLabs тарифицируется по символам** — в UI должен быть индикатор примерной стоимости/остатка лимита перед генерацией, иначе тесты съедят кредиты незаметно.
 - **TikTok Content Posting API** пока используется только через inbox-эндпоинт (`video.upload`, черновик во «Входящих») — приложение не проходило app review. Прежде чем переключаться на Direct Post/`video.publish` или добавлять публичную публикацию, нужно отдельное согласование (и пройденный review на стороне TikTok, с демо-видео).
 - **Google OAuth consent screen в статусе Testing** — выданный `refresh_token` может протухать примерно раз в 7 дней, пока приложение не пройдёт верификацию Google (не нужна для личного использования, но тогда переподключаться к YouTube придётся периодически — `getValidAccessToken()` в этом случае просто просит переподключиться, не падает с generic-ошибкой).
+- **Instagram Content Publishing API требует публичный `video_url`, а не заливку байтов** — сервер, на котором крутится приложение, должен быть реально доступен из интернета по HTTPS с валидным сертификатом. В локальной разработке — туннель (ngrok и т.п.), самоподписанный сертификат `dev:https` не подходит (тот годится только для браузерного OAuth-редиректа TikTok, не для серверной загрузки видео Meta).
+- **`instagram_content_publish`/`pages_read_engagement` в статусе Development** — работают без Meta App Review только для ролей, добавленных в приложение (admin/developer/tester в Meta App Dashboard); для публикации от имени сторонних аккаунтов нужно отдельное прохождение ревью (демо-видео, рассмотрение), как и с TikTok `video.publish`.
 
 ## Не трогать без согласования
 
