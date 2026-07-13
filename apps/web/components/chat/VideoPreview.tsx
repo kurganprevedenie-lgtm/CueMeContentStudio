@@ -116,6 +116,26 @@ export function VideoPreview() {
   });
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Готовый .mp4 из прошлого экспорта относится к прошлому содержимому —
+  // как только что-то из того, что реально уходит в рендер, меняется,
+  // старая ссылка на скачивание больше не соответствует превью и должна
+  // исчезнуть, а не выдаваться пользователю за актуальное видео.
+  useEffect(() => {
+    if (pollRef.current) {
+      clearTimeout(pollRef.current);
+      pollRef.current = null;
+    }
+    setExportState((s) => (s.status === "idle" ? s : { status: "idle" }));
+  }, [
+    messages,
+    theme,
+    timings,
+    suggestionContent,
+    suggestionTiming,
+    backgroundContent,
+    layoutSettings,
+  ]);
+
   const buildTimings = async () => {
     setBuilding(true);
     setError(null);
