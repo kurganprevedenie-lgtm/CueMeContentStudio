@@ -19,6 +19,7 @@ import {
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InstagramPublish } from "@/components/chat/InstagramPublish";
 import { TikTokPublish } from "@/components/chat/TikTokPublish";
 import { YouTubePublish } from "@/components/chat/YouTubePublish";
 
@@ -351,6 +352,10 @@ export function VideoPreview() {
                 />
                 <TikTokPublish
                   key={exportState.jobId}
+                  renderJobId={exportState.jobId}
+                />
+                <InstagramPublish
+                  key={`instagram-${exportState.jobId}`}
                   renderJobId={exportState.jobId}
                 />
               </>
