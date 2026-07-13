@@ -293,11 +293,48 @@ interface InitResponseBody {
   error?: { code?: string; message?: string; log_id?: string };
 }
 
+const CREATOR_INFO_URL =
+  "https://open.tiktokapis.com/v2/post/publish/creator_info/query/";
+
+interface CreatorInfoBody {
+  data?: { privacy_level_options?: string[] };
+  error?: { code?: string; message?: string };
+}
+
+/**
+ * Direct Post требует по «content sharing guidelines» сперва запросить
+ * инфо о создателе — TikTok так проверяет, что приложение показывает
+ * пользователю его реальные доступные настройки приватности, а не шлёт
+ * произвольные. Возвращаем список разрешённых privacy_level; для
+ * приложения без app review там, как правило, только SELF_ONLY. Без
+ * этого шага init отвечает ошибкой со ссылкой на guidelines.
+ */
+async function queryCreatorPrivacyOptions(
+  accessToken: string
+): Promise<string[]> {
+  const res = await fetchWithRetry(CREATOR_INFO_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json; charset=UTF-8",
+    },
+  });
+  const body = (await res.json().catch(() => ({}))) as CreatorInfoBody;
+  const errorCode = body.error?.code;
+  if (!res.ok || (errorCode && errorCode !== "ok")) {
+    throw new TikTokApiError(
+      body.error?.message || `TikTok creator_info: HTTP ${res.status}`
+    );
+  }
+  return body.data?.privacy_level_options ?? [];
+}
+
 /**
  * Шаг 1 — инициализация загрузки. Куда попадёт видео — зависит от режима
  * (см. getPublishMode): во «Входящие» (inbox, без post_info — у того
  * эндпоинта нет privacy_level/title) или в профиль автора с видимостью
- * «Только я» (direct, privacy_level: SELF_ONLY обязателен). В обоих
+ * «Только я» (direct, privacy_level: SELF_ONLY обязателен, плюс
+ * предварительный запрос creator_info по требованию guidelines). В обоих
  * случаях публичной публикации не происходит — только вручную из
  * приложения TikTok.
  */
@@ -305,6 +342,17 @@ export async function initDraftUpload(
   accessToken: string,
   videoSize: number
 ): Promise<{ publishId: string; uploadUrl: string }> {
+  let postInfo: Record<string, unknown> | undefined;
+  if (getMode() === "direct") {
+    const options = await queryCreatorPrivacyOptions(accessToken);
+    if (options.length > 0 && !options.includes("SELF_ONLY")) {
+      throw new TikTokApiError(
+        "TikTok не разрешает этому аккаунту приватную публикацию (SELF_ONLY) — проверьте настройки Direct Post в приложении"
+      );
+    }
+    postInfo = { privacy_level: "SELF_ONLY" };
+  }
+
   const { chunkSize, totalChunkCount } = planChunks(videoSize);
   const res = await fetchWithRetry(getInitUrl(), {
     method: "POST",
@@ -313,9 +361,7 @@ export async function initDraftUpload(
       "Content-Type": "application/json; charset=UTF-8",
     },
     body: JSON.stringify({
-      ...(getMode() === "direct"
-        ? { post_info: { privacy_level: "SELF_ONLY" } }
-        : {}),
+      ...(postInfo ? { post_info: postInfo } : {}),
       source_info: {
         source: "FILE_UPLOAD",
         video_size: videoSize,
