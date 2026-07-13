@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { TikTokApiError, exchangeCodeForTokens } from "@/lib/tiktokApi";
 import { saveTikTokTokens } from "@/lib/tiktokTokenStore";
 
-import { STATE_COOKIE } from "../auth/route";
+import { STATE_COOKIE, VERIFIER_COOKIE } from "../auth/route";
 
 /**
  * За туннелем (ngrok и т.п.) request.url отражает то, как Next видит
@@ -49,12 +49,20 @@ export async function GET(request: Request) {
 
   const cookieStore = await cookies();
   const expectedState = cookieStore.get(STATE_COOKIE)?.value;
+  const codeVerifier = cookieStore.get(VERIFIER_COOKIE)?.value;
   cookieStore.delete(STATE_COOKIE);
+  cookieStore.delete(VERIFIER_COOKIE);
 
   if (oauthError) {
     return redirectHome(origin, { tiktok_connect_error: oauthError });
   }
-  if (!code || !state || !expectedState || state !== expectedState) {
+  if (
+    !code ||
+    !state ||
+    !expectedState ||
+    state !== expectedState ||
+    !codeVerifier
+  ) {
     return redirectHome(origin, {
       tiktok_connect_error:
         "Не удалось подтвердить запрос авторизации (state не совпадает) — попробуйте подключить TikTok ещё раз",
@@ -62,7 +70,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const tokens = await exchangeCodeForTokens(code);
+    const tokens = await exchangeCodeForTokens(code, codeVerifier);
     await saveTikTokTokens(tokens);
     return redirectHome(origin, { tiktok_connected: "1" });
   } catch (e: unknown) {
