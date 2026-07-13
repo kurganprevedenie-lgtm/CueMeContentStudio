@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useChatStore, type ParticipantIndex } from "@cueme/shared";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -12,10 +12,29 @@ function ParticipantCard({ index }: { index: ParticipantIndex }) {
   const participant = useChatStore((s) => s.participants[index]);
   const setParticipant = useChatStore((s) => s.setParticipant);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
 
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    // сбрасываем value сразу — иначе повторный выбор того же файла
+    // (например, после конвертации HEIC→JPEG) не вызовет onChange
+    event.target.value = "";
     if (!file) return;
+
+    // <img> не умеет показывать HEIC/HEIF (формат камеры iPhone по умолчанию) —
+    // ни в браузере, ни в headless Chrome при серверном рендере видео
+    const isHeic =
+      file.type === "image/heic" ||
+      file.type === "image/heif" ||
+      /\.(heic|heif)$/i.test(file.name);
+    if (isHeic) {
+      setAvatarError(
+        "HEIC не поддерживается — выбери JPG или PNG. На iPhone: при отправке фото выбери «Наибольшая совместимость», или Настройки → Камера → Форматы → «Наиболее совместимые»."
+      );
+      return;
+    }
+    setAvatarError(null);
+
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === "string") {
@@ -49,6 +68,11 @@ function ParticipantCard({ index }: { index: ParticipantIndex }) {
         onChange={handleAvatarChange}
         className="hidden"
       />
+      {avatarError ? (
+        <p className="max-w-40 text-center text-xs break-words text-destructive">
+          {avatarError}
+        </p>
+      ) : null}
       <div className="grid w-full gap-1.5">
         <Label htmlFor={`participant-name-${index}`} className="sr-only">
           Имя участника {index + 1}
