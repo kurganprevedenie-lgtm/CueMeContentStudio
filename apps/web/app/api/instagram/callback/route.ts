@@ -1,0 +1,73 @@
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+
+import { InstagramApiError, exchangeCodeForTokens } from "@/lib/instagramApi";
+import { saveInstagramTokens } from "@/lib/instagramTokenStore";
+
+import { STATE_COOKIE } from "../auth/route";
+
+/**
+ * За туннелем (ngrok и т.п.) request.url отражает то, как Next видит
+ * соединение внутри (обычно localhost), а не публичный адрес, по которому
+ * реально зашёл браузер — тот же паттерн, что в tiktok/callback и
+ * youtube/callback.
+ */
+function getPublicOrigin(request: Request): string {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  if (forwardedHost) {
+    const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https";
+    return `${forwardedProto}://${forwardedHost}`;
+  }
+  return new URL(request.url).origin;
+}
+
+function redirectHome(origin: string, params: Record<string, string>) {
+  const url = new URL("/", origin);
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+  return NextResponse.redirect(url);
+}
+
+/**
+ * Callback Facebook OAuth. Меняем authorization code на долгоживущий User
+ * Access Token, находим привязанный Instagram-аккаунт бизнеса/автора (см.
+ * instagramApi.ts) и сохраняем токены, затем возвращаем пользователя на
+ * главную с флагом успеха/ошибки в query.
+ */
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const origin = getPublicOrigin(request);
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  const oauthError =
+    url.searchParams.get("error_description") || url.searchParams.get("error");
+
+  const cookieStore = await cookies();
+  const expectedState = cookieStore.get(STATE_COOKIE)?.value;
+  cookieStore.delete(STATE_COOKIE);
+
+  if (oauthError) {
+    return redirectHome(origin, { instagram_connect_error: oauthError });
+  }
+  if (!code || !state || !expectedState || state !== expectedState) {
+    return redirectHome(origin, {
+      instagram_connect_error:
+        "Не удалось подтвердить запрос авторизации (state не совпадает) — попробуйте подключить Instagram ещё раз",
+    });
+  }
+
+  try {
+    const tokens = await exchangeCodeForTokens(code);
+    await saveInstagramTokens(tokens);
+    return redirectHome(origin, { instagram_connected: "1" });
+  } catch (e: unknown) {
+    const detail = e instanceof Error ? e.message : String(e);
+    console.error("[instagram/callback] обмен кода на токены не удался:", detail);
+    const message =
+      e instanceof InstagramApiError
+        ? detail
+        : `Не удалось подключить Instagram: ${detail}`;
+    return redirectHome(origin, { instagram_connect_error: message });
+  }
+}
