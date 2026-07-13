@@ -54,13 +54,17 @@ export function TikTokPublish({ renderJobId }: { renderJobId: string }) {
   const [connectError] = useState<string | null>(
     () => readOAuthRedirectParams().error
   );
+  const [mode, setMode] = useState<"inbox" | "direct">("inbox");
   const [job, setJob] = useState<TikTokJobSnapshot | null>(null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     fetch("/api/tiktok/status")
       .then((r) => r.json())
-      .then((d: { connected: boolean }) => setConnected(d.connected))
+      .then((d: { connected: boolean; mode?: "inbox" | "direct" }) => {
+        setConnected(d.connected);
+        if (d.mode) setMode(d.mode);
+      })
       .catch(() => setConnected(false));
 
     // сама подстановка состояния из query — в lazy-инициализаторах выше;
@@ -165,11 +169,12 @@ export function TikTokPublish({ renderJobId }: { renderJobId: string }) {
         <>
           <Button type="button" className="w-full" onClick={startPublish}>
             <UploadCloudIcon className="size-4" />
-            Сохранить черновик в TikTok
+            Отправить видео в TikTok
           </Button>
           <p className="text-xs text-muted-foreground">
-            Видео попадёт в черновики вашего аккаунта TikTok — откройте
-            приложение TikTok, чтобы просмотреть и опубликовать вручную.
+            {mode === "direct"
+              ? "Видео появится в вашем профиле TikTok с видимостью «Только я» — опубликовать для всех можно вручную в приложении TikTok."
+              : "Видео придёт уведомлением от TikTok — откройте его в приложении TikTok, чтобы просмотреть и опубликовать вручную."}
           </p>
           <button
             type="button"
@@ -198,8 +203,9 @@ export function TikTokPublish({ renderJobId }: { renderJobId: string }) {
       {job?.phase === "done" ? (
         <p className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
           <CheckCircle2Icon className="size-4 shrink-0" />
-          Черновик готов — откройте приложение TikTok, чтобы просмотреть и
-          опубликовать вручную.
+          {mode === "direct"
+            ? "Готово — видео в вашем профиле TikTok с видимостью «Только я». Опубликовать для всех можно вручную в приложении TikTok."
+            : "Готово — TikTok прислал уведомление «отредактируйте видео». Откройте его в приложении TikTok, чтобы просмотреть и опубликовать вручную."}
         </p>
       ) : null}
 

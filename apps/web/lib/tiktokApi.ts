@@ -13,17 +13,44 @@ import {
 // Если TikTok поменяет пути, менять нужно только здесь.
 const AUTHORIZE_URL = "https://www.tiktok.com/v2/auth/authorize/";
 const TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/";
-// /post/publish/video/init/ (Direct Post, scope video.publish, privacy_level
-// в теле запроса) требует прохождения TikTok App Review, даже для
-// privacy_level: SELF_ONLY — а ревью просит демо-видео и рассмотрение может
-// занять дни. /post/publish/inbox/video/init/ (scope video.upload) даёт тот
-// же результат для нашей задачи — видео как черновик, видимый только
-// автору — но включён по умолчанию, без ревью: видео просто падает во
-// «Входящие» TikTok-аккаунта автора, откуда публикуется вручную.
-const INIT_URL = "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/";
 const STATUS_URL = "https://open.tiktokapis.com/v2/post/publish/status/fetch/";
 
-const SCOPE = "video.upload";
+export type TikTokPublishMode = "inbox" | "direct";
+
+/**
+ * Два способа доставки видео, переключаются через TIKTOK_PUBLISH_MODE в .env:
+ *
+ * - "inbox" (по умолчанию): /post/publish/inbox/video/init/, scope
+ *   video.upload — включён у приложения по умолчанию, без app review.
+ *   Видео приходит пуш-уведомлением от TikTok («отредактируйте перед
+ *   публикацией»), в профиле/черновиках его НЕ видно — только за
+ *   уведомлением. В Sandbox уведомление во «Входящих» может не
+ *   отображаться вовсе.
+ *
+ * - "direct": /post/publish/video/init/, scope video.publish, Direct Post —
+ *   видео появляется в профиле автора с privacy_level: SELF_ONLY
+ *   («Только я»), публичной публикации всё равно не происходит. В
+ *   production требует пройденного app review (тумблер Direct Post
+ *   заблокирован до ревью), но в Sandbox включается свободно — песочница
+ *   и предназначена для демонстрации интеграции до аппрува.
+ */
+function getMode(): TikTokPublishMode {
+  return process.env.TIKTOK_PUBLISH_MODE === "direct" ? "direct" : "inbox";
+}
+
+export function getPublishMode(): TikTokPublishMode {
+  return getMode();
+}
+
+function getScope(): string {
+  return getMode() === "direct" ? "video.publish" : "video.upload";
+}
+
+function getInitUrl(): string {
+  return getMode() === "direct"
+    ? "https://open.tiktokapis.com/v2/post/publish/video/init/"
+    : "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/";
+}
 
 /** Приложение не подключено к TikTok (нет токенов) или подключение истекло */
 export class TikTokNotConnectedError extends Error {}
@@ -66,7 +93,7 @@ export function buildAuthorizeUrl(state: string, codeVerifier: string): string {
   const { clientKey } = getClientCredentials();
   const url = new URL(AUTHORIZE_URL);
   url.searchParams.set("client_key", clientKey);
-  url.searchParams.set("scope", SCOPE);
+  url.searchParams.set("scope", getScope());
   url.searchParams.set("response_type", "code");
   url.searchParams.set("redirect_uri", getRedirectUri());
   url.searchParams.set("state", state);
@@ -136,7 +163,7 @@ async function parseTokenResponse(res: Response): Promise<TikTokTokens> {
     accessExpiresAt: now + (body.expires_in ?? 0) * 1000,
     refreshExpiresAt: now + (body.refresh_expires_in ?? 0) * 1000,
     openId: body.open_id ?? "",
-    scope: body.scope ?? SCOPE,
+    scope: body.scope ?? getScope(),
   };
 }
 
@@ -184,10 +211,25 @@ async function refreshTokens(refreshToken: string): Promise<TikTokTokens> {
 /** Обновляем заранее, не дожидаясь 401 — access_token живёт ~24ч, запас 5 минут с головой перекрывает время публикации */
 const ACCESS_TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000;
 
+/** TikTok отдаёт scope строкой через запятую ("user.info.basic,video.upload") */
+function hasRequiredScope(grantedScope: string): boolean {
+  return grantedScope
+    .split(",")
+    .map((s) => s.trim())
+    .includes(getScope());
+}
+
 export async function getValidAccessToken(): Promise<string> {
   const tokens = await loadTikTokTokens();
   if (!tokens) {
     throw new TikTokNotConnectedError("TikTok не подключён");
+  }
+  // сменился TIKTOK_PUBLISH_MODE — у сохранённого токена другое разрешение,
+  // TikTok ответил бы invalid scope; понятнее сразу попросить переподключиться
+  if (!hasRequiredScope(tokens.scope)) {
+    throw new TikTokNotConnectedError(
+      "Режим публикации изменился — переподключите TikTok, чтобы выдать новое разрешение"
+    );
   }
   if (Date.now() < tokens.accessExpiresAt - ACCESS_TOKEN_REFRESH_MARGIN_MS) {
     return tokens.accessToken;
@@ -206,7 +248,9 @@ export async function getValidAccessToken(): Promise<string> {
 export async function isTikTokConnected(): Promise<boolean> {
   const tokens = await loadTikTokTokens();
   if (!tokens) return false;
-  return Date.now() < tokens.refreshExpiresAt;
+  // токен с другим scope считаем неподключённым — UI сразу покажет
+  // кнопку «Подключить TikTok» вместо ошибки при попытке загрузки
+  return Date.now() < tokens.refreshExpiresAt && hasRequiredScope(tokens.scope);
 }
 
 // --- Content Posting API: инициализация + chunked upload + статус ---
@@ -250,24 +294,28 @@ interface InitResponseBody {
 }
 
 /**
- * Шаг 1 — инициализация загрузки черновика во «Входящие» TikTok-аккаунта
- * автора (inbox/video/init/, scope video.upload). Никакого post_info —
- * у этого эндпоинта нет privacy_level/title, TikTok сам считает всё, что
- * сюда попадает, черновиком, видимым только автору, до тех пор пока он не
- * отредактирует и не опубликует его вручную в приложении TikTok.
+ * Шаг 1 — инициализация загрузки. Куда попадёт видео — зависит от режима
+ * (см. getPublishMode): во «Входящие» (inbox, без post_info — у того
+ * эндпоинта нет privacy_level/title) или в профиль автора с видимостью
+ * «Только я» (direct, privacy_level: SELF_ONLY обязателен). В обоих
+ * случаях публичной публикации не происходит — только вручную из
+ * приложения TikTok.
  */
 export async function initDraftUpload(
   accessToken: string,
   videoSize: number
 ): Promise<{ publishId: string; uploadUrl: string }> {
   const { chunkSize, totalChunkCount } = planChunks(videoSize);
-  const res = await fetchWithRetry(INIT_URL, {
+  const res = await fetchWithRetry(getInitUrl(), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json; charset=UTF-8",
     },
     body: JSON.stringify({
+      ...(getMode() === "direct"
+        ? { post_info: { privacy_level: "SELF_ONLY" } }
+        : {}),
       source_info: {
         source: "FILE_UPLOAD",
         video_size: videoSize,
