@@ -110,17 +110,38 @@ const MAX_RATE_LIMIT_RETRIES = 4;
 const RATE_LIMIT_BASE_DELAY_MS = 2000;
 const RATE_LIMIT_MAX_DELAY_MS = 20000;
 
+// Без явного таймаута зависшее соединение (например, тихая блокировка на
+// уровне сети — TikTok Content Posting API недоступен для части регионов)
+// висит 5 минут (дефолтный headers timeout Node/undici) прежде чем упасть с
+// малопонятным "fetch failed". Метаданные (токены/init/статус) — лёгкие
+// запросы, TikTok должен ответить за секунды; заливка чанка видео — реальная
+// передача данных, ей нужно больше времени на медленных соединениях.
+const DEFAULT_TIMEOUT_MS = 30_000;
+const UPLOAD_TIMEOUT_MS = 120_000;
+
 /**
- * fetch с обработкой 429: TikTok рекомендует уважать Retry-After, если его
- * нет — экспоненциальная пауза. Ошибки токена/сети наверх не оборачиваем,
- * их обрабатывают вызывающие функции (там понятнее, что за операция).
+ * fetch с таймаутом и обработкой 429: TikTok рекомендует уважать Retry-After,
+ * если его нет — экспоненциальная пауза. Ошибки токена/сети (кроме таймаута)
+ * наверх не оборачиваем, их обрабатывают вызывающие функции (там понятнее,
+ * что за операция).
  */
 async function fetchWithRetry(
   url: string,
   init: RequestInit,
-  attempt = 0
+  attempt = 0,
+  timeoutMs = DEFAULT_TIMEOUT_MS
 ): Promise<Response> {
-  const res = await fetch(url, init);
+  let res: Response;
+  try {
+    res = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+  } catch (e: unknown) {
+    if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
+      throw new TikTokApiError(
+        `TikTok не ответил за ${Math.round(timeoutMs / 1000)} секунд — проверьте сеть/VPN`
+      );
+    }
+    throw e;
+  }
   if (res.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
     const retryAfterHeader = res.headers.get("retry-after");
     const retryAfterSec = retryAfterHeader ? Number(retryAfterHeader) : NaN;
@@ -131,7 +152,7 @@ async function fetchWithRetry(
           RATE_LIMIT_MAX_DELAY_MS
         );
     await sleep(waitMs);
-    return fetchWithRetry(url, init, attempt + 1);
+    return fetchWithRetry(url, init, attempt + 1, timeoutMs);
   }
   return res;
 }
@@ -405,16 +426,21 @@ export async function uploadVideoChunks(
       const buffer = Buffer.alloc(length);
       await handle.read(buffer, 0, length, start);
 
-      const res = await fetchWithRetry(uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "video/mp4",
-          "Content-Range": `bytes ${start}-${end}/${videoSize}`,
-          "Content-Length": String(length),
+      const res = await fetchWithRetry(
+        uploadUrl,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "video/mp4",
+            "Content-Range": `bytes ${start}-${end}/${videoSize}`,
+            "Content-Length": String(length),
+          },
+          // Buffer — валидный BodyInit в Node's fetch
+          body: buffer as unknown as BodyInit,
         },
-        // Buffer — валидный BodyInit в Node's fetch
-        body: buffer as unknown as BodyInit,
-      });
+        0,
+        UPLOAD_TIMEOUT_MS
+      );
       if (!res.ok) {
         const text = await res.text().catch(() => "");
         throw new TikTokApiError(
