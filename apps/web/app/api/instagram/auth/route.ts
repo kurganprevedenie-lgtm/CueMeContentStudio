@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
-import { buildAuthorizeUrl } from "@/lib/instagramApi";
+import { buildInstagramAuthorizeUrl as buildAuthorizeUrl } from "@cueme/publish-clients";
 
 export const STATE_COOKIE = "instagram_oauth_state";
 

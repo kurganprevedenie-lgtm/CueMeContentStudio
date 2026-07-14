@@ -4,9 +4,14 @@ import path from "node:path";
 import { decrypt, encrypt } from "./tokenCrypto";
 
 // Токены никогда не должны попасть в git или в логи — храним зашифрованным
-// файлом вне репозитория (apps/web/.data/, см. .gitignore), а не в env
-// (env статичен на время процесса, а нам нужно перезаписывать значения
-// при каждом refresh) и не в БД (в проекте её нет).
+// файлом вне репозитория (<cwd>/.data/, см. .gitignore), а не в env (env
+// статичен на время процесса, а нам нужно перезаписывать значения при
+// каждом refresh) и не в БД (в проекте её нет). process.cwd() — значит у
+// Content Studio (apps/web) это apps/web/.data, у autopost-worker — его
+// собственная рабочая директория; чтобы воркер публиковал уже подключённым
+// аккаунтом, эти файлы нужно один раз скопировать туда (см.
+// AUTOPOST_WORKER_SETUP.md) — токен-эндпоинты TikTok/YouTube/Instagram не
+// поддерживают service-account/безинтерактивный логин.
 const STORE_DIR = path.join(process.cwd(), ".data");
 const STORE_PATH = path.join(STORE_DIR, "tiktok-tokens.enc");
 

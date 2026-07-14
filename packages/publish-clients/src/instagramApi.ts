@@ -292,11 +292,9 @@ export type InstagramContainerStatus =
 /**
  * Шаг 1 — создаём медиа-контейнер Reels. В отличие от TikTok/YouTube мы не
  * стримим байты сами — Meta сама забирает видео по videoUrl (см.
- * app/api/render/[jobId]/download/route.ts), поэтому videoUrl должен быть
- * реально публичным HTTPS-адресом с валидным сертификатом (self-signed
- * сертификат `pnpm dev:https`, которого достаточно для TikTok OAuth-редиректа
- * в браузере, здесь не подойдёт — серверная заливка Meta его не примет; для
- * локальной разработки нужен туннель вроде ngrok).
+ * app/api/render/[jobId]/download/route.ts в Content Studio, либо прямую
+ * ссылку на файл Google Drive у autopost-worker), поэтому videoUrl должен
+ * быть реально публичным HTTPS-адресом с валидным сертификатом.
  */
 export async function createReelsContainer(
   pageAccessToken: string,

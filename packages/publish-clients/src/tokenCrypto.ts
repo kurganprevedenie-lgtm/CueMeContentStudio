@@ -1,13 +1,15 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 // Общий AES-256-GCM хелпер для файлов с OAuth-токенами соцсетей
-// (tiktokTokenStore.ts, youtubeTokenStore.ts) — вынесен в одно место,
-// чтобы шифрование не расходилось между копиями при будущих правках.
+// (tiktokTokenStore.ts, youtubeTokenStore.ts, instagramTokenStore.ts) —
+// вынесен в одно место, чтобы шифрование не расходилось между копиями при
+// будущих правках. Используется и Content Studio (apps/web), и
+// autopost-worker — оба читают TOKEN_ENCRYPTION_KEY из своего .env.
 function getEncryptionKey(): Buffer {
   const hex = process.env.TOKEN_ENCRYPTION_KEY;
   if (!hex) {
     throw new Error(
-      "TOKEN_ENCRYPTION_KEY не задан — добавь его в .env (см. .env.example) и перезапусти pnpm dev"
+      "TOKEN_ENCRYPTION_KEY не задан — добавь его в .env (см. .env.example) и перезапусти процесс"
     );
   }
   const key = Buffer.from(hex, "hex");

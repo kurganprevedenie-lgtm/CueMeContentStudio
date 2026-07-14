@@ -11,7 +11,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { YouTubePrivacyStatus } from "@/lib/youtubeApi";
+import type { YouTubePrivacyStatus } from "@cueme/publish-clients";
 
 interface YouTubeJobSnapshot {
   id: string;

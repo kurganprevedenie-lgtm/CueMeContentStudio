@@ -4,7 +4,7 @@ import path from "node:path";
 import { decrypt, encrypt } from "./tokenCrypto";
 
 // Тот же подход, что в tiktokTokenStore.ts/youtubeTokenStore.ts — зашифрованный
-// файл вне репозитория (apps/web/.data/, см. .gitignore), не env, не БД.
+// файл вне репозитория (<cwd>/.data/, см. .gitignore), не env, не БД.
 const STORE_DIR = path.join(process.cwd(), ".data");
 const STORE_PATH = path.join(STORE_DIR, "instagram-tokens.enc");
 

@@ -3,9 +3,9 @@ import { randomUUID } from "node:crypto";
 import {
   YouTubeApiError,
   YouTubeNotConnectedError,
-  uploadVideo,
+  uploadToYouTube as uploadVideo,
   type YouTubePrivacyStatus,
-} from "./youtubeApi";
+} from "@cueme/publish-clients";
 
 export type YouTubeJobPhase = "uploading" | "done" | "error";
 

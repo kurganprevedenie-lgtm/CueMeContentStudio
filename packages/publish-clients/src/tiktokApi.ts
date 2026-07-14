@@ -80,7 +80,7 @@ function getRedirectUri(): string {
 // TikTok требует PKCE (code_challenge) для новых/sandbox-приложений — без
 // него /v2/auth/authorize/ отвечает ошибкой "code_challenge" ещё до экрана
 // логина. code_verifier живёт в httpOnly-cookie между /auth и /callback
-// (см. STATE_COOKIE в app/api/tiktok/auth/route.ts).
+// (см. STATE_COOKIE в app/api/tiktok/auth/route.ts, apps/web).
 export function createCodeVerifier(): string {
   return randomBytes(64).toString("base64url");
 }
@@ -353,15 +353,17 @@ async function queryCreatorPrivacyOptions(
 /**
  * Шаг 1 — инициализация загрузки. Куда попадёт видео — зависит от режима
  * (см. getPublishMode): во «Входящие» (inbox, без post_info — у того
- * эндпоинта нет privacy_level/title) или в профиль автора с видимостью
- * «Только я» (direct, privacy_level: SELF_ONLY обязателен, плюс
- * предварительный запрос creator_info по требованию guidelines). В обоих
- * случаях публичной публикации не происходит — только вручную из
- * приложения TikTok.
+ * эндпоинта нет ни privacy_level/title, ни caption — подпись добавляется
+ * только вручную в приложении TikTok, caption сюда поэтому игнорируется) или
+ * в профиль автора с видимостью «Только я» (direct, privacy_level:
+ * SELF_ONLY обязателен, caption уходит в title, плюс предварительный запрос
+ * creator_info по требованию guidelines). В обоих случаях публичной
+ * публикации не происходит — только вручную из приложения TikTok.
  */
 export async function initDraftUpload(
   accessToken: string,
-  videoSize: number
+  videoSize: number,
+  caption?: string
 ): Promise<{ publishId: string; uploadUrl: string }> {
   let postInfo: Record<string, unknown> | undefined;
   if (getMode() === "direct") {
@@ -371,7 +373,10 @@ export async function initDraftUpload(
         "TikTok не разрешает этому аккаунту приватную публикацию (SELF_ONLY) — проверьте настройки Direct Post в приложении"
       );
     }
-    postInfo = { privacy_level: "SELF_ONLY" };
+    postInfo = {
+      privacy_level: "SELF_ONLY",
+      ...(caption ? { title: caption } : {}),
+    };
   }
 
   const { chunkSize, totalChunkCount } = planChunks(videoSize);

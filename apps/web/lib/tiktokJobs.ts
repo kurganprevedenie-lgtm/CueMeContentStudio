@@ -6,11 +6,11 @@ import {
   TikTokApiError,
   TikTokNotConnectedError,
   fetchPublishStatus,
-  getValidAccessToken,
+  getValidTikTokAccessToken as getValidAccessToken,
   initDraftUpload,
   uploadVideoChunks,
   type TikTokPublishStatus,
-} from "./tiktokApi";
+} from "@cueme/publish-clients";
 
 export type TikTokJobPhase = "uploading" | "polling" | "done" | "error";
 
@@ -51,7 +51,8 @@ export class VideoTooLargeError extends Error {}
  * этого, а получает id задачи и опрашивает статус отдельно.
  */
 export async function startTikTokPublish(
-  filePath: string
+  filePath: string,
+  caption?: string
 ): Promise<TikTokPublishJob> {
   const { size } = await stat(filePath);
   if (size > MAX_VIDEO_BYTES) {
@@ -68,15 +69,20 @@ export async function startTikTokPublish(
   };
   jobs.set(job.id, job);
 
-  void runUpload(job, filePath, size);
+  void runUpload(job, filePath, size, caption);
 
   return job;
 }
 
-async function runUpload(job: TikTokPublishJob, filePath: string, size: number) {
+async function runUpload(
+  job: TikTokPublishJob,
+  filePath: string,
+  size: number,
+  caption?: string
+) {
   try {
     const accessToken = await getValidAccessToken();
-    const { publishId, uploadUrl } = await initDraftUpload(accessToken, size);
+    const { publishId, uploadUrl } = await initDraftUpload(accessToken, size, caption);
     job.publishId = publishId;
 
     await uploadVideoChunks(uploadUrl, filePath, size, (progress) => {

@@ -1,8 +1,11 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { InstagramApiError, exchangeCodeForTokens } from "@/lib/instagramApi";
-import { saveInstagramTokens } from "@/lib/instagramTokenStore";
+import {
+  InstagramApiError,
+  exchangeInstagramCodeForTokens as exchangeCodeForTokens,
+  saveInstagramTokens,
+} from "@cueme/publish-clients";
 
 import { STATE_COOKIE } from "../auth/route";
 

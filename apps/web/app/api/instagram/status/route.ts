@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { isInstagramConnected } from "@/lib/instagramApi";
-import { clearInstagramTokens } from "@/lib/instagramTokenStore";
+import {
+  clearInstagramTokens,
+  isInstagramConnected,
+} from "@cueme/publish-clients";
 
 export async function GET() {
   return NextResponse.json({ connected: await isInstagramConnected() });

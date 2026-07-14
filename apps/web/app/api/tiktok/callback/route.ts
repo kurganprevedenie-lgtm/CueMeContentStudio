@@ -1,8 +1,11 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { TikTokApiError, exchangeCodeForTokens } from "@/lib/tiktokApi";
-import { saveTikTokTokens } from "@/lib/tiktokTokenStore";
+import {
+  TikTokApiError,
+  exchangeTikTokCodeForTokens as exchangeCodeForTokens,
+  saveTikTokTokens,
+} from "@cueme/publish-clients";
 
 import { STATE_COOKIE, VERIFIER_COOKIE } from "../auth/route";
 

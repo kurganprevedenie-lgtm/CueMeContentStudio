@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { isYouTubeConnected } from "@/lib/youtubeApi";
-import { clearYouTubeTokens } from "@/lib/youtubeTokenStore";
+import { clearYouTubeTokens, isYouTubeConnected } from "@cueme/publish-clients";
 
 export async function GET() {
   return NextResponse.json({ connected: await isYouTubeConnected() });

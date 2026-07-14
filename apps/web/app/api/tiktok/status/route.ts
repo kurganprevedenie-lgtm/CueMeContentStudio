@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
-import { getPublishMode, isTikTokConnected } from "@/lib/tiktokApi";
-import { clearTikTokTokens } from "@/lib/tiktokTokenStore";
+import {
+  clearTikTokTokens,
+  getTikTokPublishMode as getPublishMode,
+  isTikTokConnected,
+} from "@cueme/publish-clients";
 
 export async function GET() {
   return NextResponse.json({

@@ -19,7 +19,7 @@ try {
 }
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@cueme/shared", "@cueme/remotion"],
+  transpilePackages: ["@cueme/shared", "@cueme/remotion", "@cueme/publish-clients"],
   // @remotion/renderer и @remotion/bundler запускают Chromium/ffmpeg — не бандлить
   serverExternalPackages: ["@remotion/renderer", "@remotion/bundler"],
   // Next в dev-режиме по умолчанию блокирует запросы к dev-ассетам с чужого

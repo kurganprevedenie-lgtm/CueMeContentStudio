@@ -6,9 +6,9 @@ import {
   createReelsContainer,
   fetchContainerStatus,
   fetchPermalink,
-  getValidAccount,
+  getValidInstagramAccount as getValidAccount,
   publishContainer,
-} from "./instagramApi";
+} from "@cueme/publish-clients";
 
 export type InstagramJobPhase =
   | "creating"

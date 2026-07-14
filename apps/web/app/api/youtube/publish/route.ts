@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getRenderJob } from "@/lib/renderJobs";
 import { startYouTubePublish } from "@/lib/youtubeJobs";
-import type { YouTubePrivacyStatus } from "@/lib/youtubeApi";
+import type { YouTubePrivacyStatus } from "@cueme/publish-clients";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));

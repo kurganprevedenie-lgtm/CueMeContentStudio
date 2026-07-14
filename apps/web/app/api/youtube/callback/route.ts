@@ -1,8 +1,11 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { YouTubeApiError, exchangeCodeForTokens } from "@/lib/youtubeApi";
-import { saveYouTubeTokens } from "@/lib/youtubeTokenStore";
+import {
+  YouTubeApiError,
+  exchangeYouTubeCodeForTokens as exchangeCodeForTokens,
+  saveYouTubeTokens,
+} from "@cueme/publish-clients";
 
 import { STATE_COOKIE } from "../auth/route";
 

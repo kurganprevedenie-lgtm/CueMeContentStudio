@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
-import { buildAuthorizeUrl, createCodeVerifier } from "@/lib/tiktokApi";
+import {
+  buildTikTokAuthorizeUrl as buildAuthorizeUrl,
+  createCodeVerifier,
+} from "@cueme/publish-clients";
 
 export const STATE_COOKIE = "tiktok_oauth_state";
 export const VERIFIER_COOKIE = "tiktok_oauth_verifier";
