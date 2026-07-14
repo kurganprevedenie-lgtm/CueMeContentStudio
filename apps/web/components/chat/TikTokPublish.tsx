@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 interface TikTokJobSnapshot {
   id: string;
@@ -55,6 +56,7 @@ export function TikTokPublish({ renderJobId }: { renderJobId: string }) {
     () => readOAuthRedirectParams().error
   );
   const [mode, setMode] = useState<"inbox" | "direct">("inbox");
+  const [caption, setCaption] = useState("");
   const [job, setJob] = useState<TikTokJobSnapshot | null>(null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -115,7 +117,10 @@ export function TikTokPublish({ renderJobId }: { renderJobId: string }) {
       const res = await fetch("/api/tiktok/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId: renderJobId }),
+        body: JSON.stringify({
+          jobId: renderJobId,
+          ...(mode === "direct" ? { caption } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -167,6 +172,13 @@ export function TikTokPublish({ renderJobId }: { renderJobId: string }) {
     <div className="flex flex-col gap-2 border-t pt-4">
       {(!job || job.phase === "error") && job?.errorKind !== "not_connected" ? (
         <>
+          {mode === "direct" ? (
+            <Textarea
+              placeholder="Описание и хэштеги (необязательно)"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+            />
+          ) : null}
           <Button type="button" className="w-full" onClick={startPublish}>
             <UploadCloudIcon className="size-4" />
             Отправить видео в TikTok
@@ -174,7 +186,7 @@ export function TikTokPublish({ renderJobId }: { renderJobId: string }) {
           <p className="text-xs text-muted-foreground">
             {mode === "direct"
               ? "Видео появится в вашем профиле TikTok с видимостью «Только я» — опубликовать для всех можно вручную в приложении TikTok."
-              : "Видео придёт уведомлением от TikTok — откройте его в приложении TikTok, чтобы просмотреть и опубликовать вручную."}
+              : "Видео придёт уведомлением от TikTok — откройте его в приложении TikTok, чтобы просмотреть и опубликовать вручную. Подпись и хэштеги в режиме «Входящие» можно добавить только там же, вручную."}
           </p>
           <button
             type="button"

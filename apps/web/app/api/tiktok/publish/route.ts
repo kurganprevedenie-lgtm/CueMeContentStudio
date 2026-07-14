@@ -5,7 +5,7 @@ import { VideoTooLargeError, startTikTokPublish } from "@/lib/tiktokJobs";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const { jobId } = (body ?? {}) as { jobId?: unknown };
+  const { jobId, caption } = (body ?? {}) as { jobId?: unknown; caption?: unknown };
 
   if (typeof jobId !== "string") {
     return NextResponse.json(
@@ -23,7 +23,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const job = await startTikTokPublish(renderJob.outputPath);
+    const job = await startTikTokPublish(
+      renderJob.outputPath,
+      typeof caption === "string" ? caption : undefined
+    );
     return NextResponse.json(job);
   } catch (e: unknown) {
     if (e instanceof VideoTooLargeError) {
