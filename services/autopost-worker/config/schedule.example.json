@@ -1,0 +1,7 @@
+{
+  "timezone": "Europe/Moscow",
+  "slots": [
+    { "dayOfWeek": "tuesday", "time": "17:00" },
+    { "dayOfWeek": "friday", "time": "19:00" }
+  ]
+}

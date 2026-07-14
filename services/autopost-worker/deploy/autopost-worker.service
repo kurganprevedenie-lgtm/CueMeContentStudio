@@ -1,0 +1,31 @@
+[Unit]
+Description=CueMe autopost-worker — scheduled TikTok/YouTube/Instagram publisher from Google Drive
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=autopost
+Group=autopost
+WorkingDirectory=/opt/autopost-worker
+EnvironmentFile=/opt/autopost-worker/.env
+ExecStart=/opt/autopost-worker/node_modules/.bin/tsx src/index.ts
+Restart=on-failure
+RestartSec=10
+
+# Лёгкий процесс — почти всё время спит между опросами Drive и проверками
+# расписания, изредка недолго грузит/льёт видео. Разумный потолок на случай
+# утечки или зависшей загрузки, а не расчёт на постоянную нагрузку.
+MemoryMax=256M
+CPUQuota=25%
+
+# Базовая изоляция от cueme-bot и остальной системы — процессу нужен доступ
+# на запись только в свои рабочие каталоги, больше никуда.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/autopost-worker/data /opt/autopost-worker/tmp /opt/autopost-worker/.data
+ReadWritePaths=/opt/autopost-worker/autopost-worker.log
+
+[Install]
+WantedBy=multi-user.target

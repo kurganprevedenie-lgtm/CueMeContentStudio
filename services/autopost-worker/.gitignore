@@ -1,0 +1,9 @@
+.env
+service-account.json
+.data/
+data/
+tmp/
+dist/
+node_modules/
+*.log
+config/schedule.json
