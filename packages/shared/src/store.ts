@@ -2,8 +2,12 @@ import { create } from "zustand";
 
 import { defaultThemeId, type ThemeId } from "./themes";
 import {
+  DEFAULT_BOT_BANNER_SETTINGS,
   DEFAULT_LAYOUT_SETTINGS,
   type BackgroundSettings,
+  type BotBannerPosition,
+  type BotBannerSettings,
+  type BotBannerTiming,
   type LayoutSettings,
   type Message,
   type Participant,
@@ -42,6 +46,15 @@ const defaultBackground: BackgroundSettings = {
   backgroundId: null,
   volume: 0,
   overlayOpacity: 0.3,
+};
+
+// NEXT_PUBLIC_ — значение должно быть доступно в браузере: и превью
+// (Remotion Player), и форма настроек баннера рендерятся на клиенте.
+// Не хардкодим юзернейм бота в коде — только дефолт текстового поля, само
+// поле пользователь может отредактировать под конкретное видео.
+const defaultBotBanner: BotBannerSettings = {
+  ...DEFAULT_BOT_BANNER_SETTINGS,
+  text: process.env.NEXT_PUBLIC_CUEME_BOT_USERNAME ?? "",
 };
 
 interface ChatState {
@@ -85,6 +98,14 @@ interface ChatState {
   resetLayoutSettings: () => void;
   /** Сохраняет текущие layoutSettings как новый стандарт (localStorage) — «Сбросить» будет откатывать сюда */
   saveLayoutSettingsAsDefault: () => void;
+  botBanner: BotBannerSettings;
+  setBotBannerEnabled: (enabled: boolean) => void;
+  setBotBannerText: (text: string) => void;
+  setBotBannerPosition: (position: BotBannerPosition) => void;
+  setBotBannerTiming: (timing: BotBannerTiming) => void;
+  setBotBannerTimingDurationSec: (v: number) => void;
+  setBotBannerPeriodicIntervalSec: (v: number) => void;
+  setBotBannerPeriodicVisibleSec: (v: number) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -211,4 +232,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     }
   },
+  botBanner: defaultBotBanner,
+  setBotBannerEnabled: (enabled) =>
+    set((state) => ({ botBanner: { ...state.botBanner, enabled } })),
+  setBotBannerText: (text) =>
+    set((state) => ({ botBanner: { ...state.botBanner, text } })),
+  setBotBannerPosition: (position) =>
+    set((state) => ({ botBanner: { ...state.botBanner, position } })),
+  setBotBannerTiming: (timing) =>
+    set((state) => ({ botBanner: { ...state.botBanner, timing } })),
+  setBotBannerTimingDurationSec: (v) =>
+    set((state) => ({
+      botBanner: { ...state.botBanner, timingDurationSec: v },
+    })),
+  setBotBannerPeriodicIntervalSec: (v) =>
+    set((state) => ({
+      botBanner: { ...state.botBanner, periodicIntervalSec: v },
+    })),
+  setBotBannerPeriodicVisibleSec: (v) =>
+    set((state) => ({
+      botBanner: { ...state.botBanner, periodicVisibleSec: v },
+    })),
 }));

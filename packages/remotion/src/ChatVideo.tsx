@@ -15,6 +15,7 @@ import { DEFAULT_LAYOUT_SETTINGS } from "@cueme/shared";
 
 import { getScaledBubbleMetrics, type ScaledBubbleMetrics } from "./bubbleMetrics";
 import { BackgroundVideo } from "./BackgroundVideo";
+import { BotBanner } from "./BotBanner";
 import { getCardState } from "./cardHeight";
 import { ChatWindowCard, getChatWindowCardLayout } from "./ChatWindowCard";
 import type {
@@ -268,6 +269,7 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
   background,
   headerStyle,
   layout,
+  botBanner,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -396,6 +398,17 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
         >
           <Audio src={suggestion.audioUrl} />
         </Sequence>
+      ) : null}
+      {botBanner?.enabled && botBanner.text.trim() ? (
+        <BotBanner
+          text={botBanner.text}
+          position={botBanner.position}
+          timing={botBanner.timing}
+          timingDurationSec={botBanner.timingDurationSec}
+          periodicIntervalSec={botBanner.periodicIntervalSec}
+          periodicVisibleSec={botBanner.periodicVisibleSec}
+          theme={theme}
+        />
       ) : null}
     </AbsoluteFill>
   );

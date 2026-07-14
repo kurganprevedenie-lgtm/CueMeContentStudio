@@ -12,6 +12,7 @@ export async function POST(request: Request) {
     suggestionTiming,
     background,
     layout,
+    botBanner,
   } = body ?? {};
 
   if (!Array.isArray(messages) || !theme || !Array.isArray(timings)) {
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
     suggestionTiming: suggestionTiming ?? null,
     background: background ?? null,
     layout: layout ?? null,
+    botBanner: botBanner ?? null,
   });
 
   return NextResponse.json({ jobId: job.id, status: job.status });

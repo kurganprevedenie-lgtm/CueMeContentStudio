@@ -67,3 +67,36 @@ export const DEFAULT_LAYOUT_SETTINGS: LayoutSettings = {
   messageFontScale: 1,
   messageSpacingScale: 1,
 };
+
+export type BotBannerPosition = "top" | "bottom" | "watermark";
+export type BotBannerTiming = "always" | "intro" | "outro" | "periodic";
+
+/**
+ * CTA-баннер с юзернеймом Telegram-бота CueMe поверх готового видео —
+ * настраивается пользователем (см. store.ts/BotBannerPanel), живёт в shared
+ * по тому же принципу, что и LayoutSettings: нужен и стору (UI), и
+ * Remotion-композиции (packages/remotion/src/BotBanner.tsx).
+ */
+export interface BotBannerSettings {
+  enabled: boolean;
+  /** Текст рядом с иконкой Telegram, например "@CueMeChatBot" — дефолт берётся из env, см. store.ts */
+  text: string;
+  position: BotBannerPosition;
+  timing: BotBannerTiming;
+  /** Для timing "intro"/"outro" — сколько секунд от начала/до конца виден баннер */
+  timingDurationSec: number;
+  /** Для timing "periodic" — раз в сколько секунд появляется */
+  periodicIntervalSec: number;
+  /** Для timing "periodic" — на сколько секунд появляется каждый раз */
+  periodicVisibleSec: number;
+}
+
+export const DEFAULT_BOT_BANNER_SETTINGS: BotBannerSettings = {
+  enabled: false,
+  text: "",
+  position: "watermark",
+  timing: "always",
+  timingDurationSec: 4,
+  periodicIntervalSec: 8,
+  periodicVisibleSec: 2.5,
+};

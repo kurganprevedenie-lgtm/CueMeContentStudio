@@ -1,4 +1,9 @@
-import type { ChatTheme, LayoutSettings, Message } from "@cueme/shared";
+import type {
+  BotBannerSettings,
+  ChatTheme,
+  LayoutSettings,
+  Message,
+} from "@cueme/shared";
 
 import type { ChatHeaderStyle } from "./ChatWindowCard";
 
@@ -70,6 +75,8 @@ export type ChatVideoProps = {
   headerStyle?: ChatHeaderStyle;
   /** Настраиваемые размер/отступы окна и сообщений — не задано = DEFAULT_LAYOUT_SETTINGS */
   layout?: LayoutSettings | null;
+  /** CTA-баннер с юзернеймом Telegram-бота поверх готового кадра — не задано/enabled: false = баннера нет */
+  botBanner?: BotBannerSettings | null;
 };
 
 export const VIDEO_FPS = 30;

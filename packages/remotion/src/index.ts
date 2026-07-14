@@ -1,6 +1,7 @@
 export { ChatVideo } from "./ChatVideo";
 export { RemotionRoot } from "./Root";
 export { BackgroundVideo } from "./BackgroundVideo";
+export { BotBanner, type BotBannerProps } from "./BotBanner";
 export {
   ChatWindowCard,
   getChatWindowCardLayout,

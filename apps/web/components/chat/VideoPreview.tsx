@@ -52,6 +52,7 @@ export function VideoPreview() {
   // как и фон, layout не завязан на тайминги — меняется в превью сразу,
   // без нажатия «Собрать видео»
   const layoutSettings = useChatStore((s) => s.layoutSettings);
+  const botBanner = useChatStore((s) => s.botBanner);
 
   const [timings, setTimings] = useState<MessageTiming[] | null>(null);
   const [suggestionTiming, setSuggestionTiming] =
@@ -140,6 +141,7 @@ export function VideoPreview() {
     suggestionTiming,
     backgroundContent,
     layoutSettings,
+    botBanner,
   ]);
 
   const buildTimings = async () => {
@@ -230,6 +232,7 @@ export function VideoPreview() {
           suggestionTiming,
           background: backgroundContent,
           layout: layoutSettings,
+          botBanner,
         }),
       });
       if (!res.ok) {
@@ -264,6 +267,7 @@ export function VideoPreview() {
               suggestionTiming,
               background: backgroundContent,
               layout: layoutSettings,
+              botBanner,
             }}
             durationInFrames={totalDurationInFrames(timings, suggestionTiming)}
             // Открываем превью не на пустом кадре 0 (окно чата ещё не выросло),

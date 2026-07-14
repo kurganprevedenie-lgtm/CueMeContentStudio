@@ -1,4 +1,5 @@
 import { BackgroundVideoSelector } from "@/components/chat/BackgroundVideoSelector";
+import { BotBannerPanel } from "@/components/chat/BotBannerPanel";
 import { ChatContainer } from "@/components/chat/ChatContainer";
 import { LayoutSettingsPanel } from "@/components/chat/LayoutSettingsPanel";
 import { MessageForm } from "@/components/chat/MessageForm";
@@ -31,6 +32,7 @@ export default function Home() {
         </div>
         <VideoPreview />
         <LayoutSettingsPanel />
+        <BotBannerPanel />
       </section>
     </main>
   );
