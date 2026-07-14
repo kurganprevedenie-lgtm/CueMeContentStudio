@@ -98,9 +98,28 @@ async function runUpload(job: TikTokPublishJob, filePath: string, size: number) 
       job.error = e.message;
     } else {
       job.errorKind = "other";
-      job.error = e instanceof Error ? e.message : String(e);
+      job.error = describeError(e);
     }
   }
+}
+
+/**
+ * Node оборачивает низкоуровневые сбои сети в общий "fetch failed", пряча
+ * настоящую причину (DNS/таймаут/TLS) в поле cause — разворачиваем цепочку
+ * cause, иначе пользователь видит бесполезное "fetch failed". Токенов в
+ * сетевых ошибках нет, показывать безопасно.
+ */
+function describeError(e: unknown): string {
+  if (!(e instanceof Error)) return String(e);
+  const parts: string[] = [e.message];
+  let cause: unknown = (e as { cause?: unknown }).cause;
+  let guard = 0;
+  while (cause instanceof Error && guard < 5) {
+    parts.push(cause.message);
+    cause = (cause as { cause?: unknown }).cause;
+    guard++;
+  }
+  return parts.join(": ");
 }
 
 function applyStatus(
