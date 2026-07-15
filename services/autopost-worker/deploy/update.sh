@@ -28,7 +28,10 @@ if [ "$LOCAL" != "$REMOTE" ]; then
     # зависимость @cueme/publish-clients, а не весь монорепо (Next.js/Remotion
     # из apps/web воркеру не нужны и не должны занимать место на слабом сервере)
     pnpm install --filter "autopost-worker..." >> "$LOG" 2>&1
-    sudo systemctl restart autopost-worker
+    # полное имя ".service" — должно посимвольно совпадать с правилом в
+    # autopost-worker-sudoers, иначе sudo всё равно спросит пароль (а у cron
+    # его ввести некому), см. NOPASSWD там
+    sudo /usr/bin/systemctl restart autopost-worker.service
     echo "$(date): Обновление применено, воркер перезапущен." >> "$LOG"
 else
     echo "$(date): Обновлений нет." >> "$LOG"
