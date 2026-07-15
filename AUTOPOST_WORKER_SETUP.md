@@ -123,6 +123,17 @@ sudo systemctl enable --now autopost-worker.service
 
 Юнит уже содержит `MemoryMax=256M`, `CPUQuota=25%` и `Restart=on-failure` — процесс лёгкий, лимиты с запасом, но не безграничные, чтобы не мешать `cueme-bot` на том же сервере. Если реальный путь на сервере отличается от `/home/nikola/CueMeContentStudio` — поправь пути в файле перед копированием.
 
+**Node ставился через nvm (в домашней папке), поэтому две вещи, которых нет у cueme-bot (он на системном python):**
+
+1. `ExecStart` в юните вызывает node **абсолютным путём** (`/home/nikola/.nvm/versions/node/v<версия>/bin/node ... tsx src/index.ts`), а не через `PATH` — systemd видит только системный `PATH`, nvm-node в нём нет. Если сменишь версию Node (`nvm install`) — поправь путь в юните (актуальный путь: `which node` на сервере).
+
+2. **SELinux (`getenforce` → `Enforcing`) блокирует запуск nvm-бинарника** из домашней папки (метка `user_home_t`), в отличие от системного python у cueme-bot (`venv/bin/python` → системный `/usr/bin/python3`, метка `bin_t`). Симптом — сервис не стартует, `status=203/EXEC`, а `sudo ausearch -m avc -ts recent` показывает `denied { execute } ... comm="(node)"`. Лечится пометкой самого бинарника `node` как системно-исполняемого:
+   ```bash
+   sudo semanage fcontext -a -t bin_t "/home/nikola/\.nvm/versions/node/v24\.18\.0/bin/node"
+   sudo restorecon -v /home/nikola/.nvm/versions/node/v24.18.0/bin/node
+   ```
+   (если нет `semanage` — `sudo dnf install -y policycoreutils-python-utils`; быстрый непостоянный вариант — `sudo chcon -t bin_t <путь к node>`). Всё остальное — чтение JS/`.env`, запись логов/состояния в домашнюю папку, сеть — SELinux и так разрешает (это доказывает работающий рядом cueme-bot, который так же живёт в домашней папке).
+
 ## Шаг 10 — автообновление с GitHub (cron)
 
 Полностью повторяет схему `~/CueMe/auto_update.sh` у cueme-bot: cron каждую минуту дёргает скрипт, тот сравнивает `HEAD` с `origin/main` и, если есть отличия — подтягивает, ставит зависимости, перезапускает сервис. Никаких GitHub Actions/вебхуков.
