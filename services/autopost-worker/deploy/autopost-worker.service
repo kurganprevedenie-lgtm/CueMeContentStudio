@@ -5,11 +5,13 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=autopost
-Group=autopost
-WorkingDirectory=/opt/autopost-worker
-EnvironmentFile=/opt/autopost-worker/.env
-ExecStart=/opt/autopost-worker/node_modules/.bin/tsx src/index.ts
+# Как и cueme-bot — от обычного пользователя, не отдельного системного
+# аккаунта (см. deploy/update.sh, повторяет схему ~/CueMe/auto_update.sh)
+User=nikola
+Group=nikola
+WorkingDirectory=/home/nikola/CueMeContentStudio/services/autopost-worker
+EnvironmentFile=/home/nikola/CueMeContentStudio/services/autopost-worker/.env
+ExecStart=/home/nikola/CueMeContentStudio/services/autopost-worker/node_modules/.bin/tsx src/index.ts
 Restart=on-failure
 RestartSec=10
 
@@ -24,8 +26,10 @@ CPUQuota=25%
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=/opt/autopost-worker/data /opt/autopost-worker/tmp /opt/autopost-worker/.data
-ReadWritePaths=/opt/autopost-worker/autopost-worker.log
+ReadWritePaths=/home/nikola/CueMeContentStudio/services/autopost-worker/data
+ReadWritePaths=/home/nikola/CueMeContentStudio/services/autopost-worker/tmp
+ReadWritePaths=/home/nikola/CueMeContentStudio/services/autopost-worker/.data
+ReadWritePaths=/home/nikola/CueMeContentStudio/services/autopost-worker/autopost-worker.log
 
 [Install]
 WantedBy=multi-user.target

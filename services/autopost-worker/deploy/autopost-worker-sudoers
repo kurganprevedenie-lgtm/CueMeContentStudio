@@ -1,0 +1,13 @@
+# Разрешает пользователю nikola перезапускать ТОЛЬКО этот systemd-юнит без
+# пароля — нужно update.sh, который дёргается по cron (каждую минуту, та же
+# схема, что у cueme-bot). Больше никаких прав не даёт. Если для cueme-bot
+# такое правило уже стоит (systemctl restart cueme-bot без пароля из-под
+# nikola) — можно дописать вторую строку в тот же файл, не обязательно
+# заводить отдельный.
+#
+# Установка на сервере:
+#   sudo cp autopost-worker-sudoers /etc/sudoers.d/autopost-worker
+#   sudo chmod 440 /etc/sudoers.d/autopost-worker
+#   sudo visudo -c   # проверить синтаксис перед тем, как доверять файлу
+
+nikola ALL=(root) NOPASSWD: /usr/bin/systemctl restart autopost-worker.service

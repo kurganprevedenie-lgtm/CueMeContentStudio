@@ -48,11 +48,15 @@ node -v   # проверить, что уже стоит
 
 ## Шаг 4 — выложить код на сервер
 
+Рядом с cueme-bot (`~/CueMe`), тем же пользователем — без отдельного системного аккаунта:
+
 ```bash
-git clone <ссылка-на-репозиторий> /opt/cueme-content-studio
-cd /opt/cueme-content-studio
-pnpm install
+git clone https://github.com/kurganprevedenie-lgtm/CueMeContentStudio.git ~/CueMeContentStudio
+cd ~/CueMeContentStudio
+pnpm install --filter "autopost-worker..."
 ```
+
+`--filter "autopost-worker..."` ставит только сам воркер и его рабочую зависимость `@cueme/publish-clients` — без Next.js/Remotion/`sharp` из `apps/web`, которые воркеру не нужны и на слабом сервере ни к чему занимать место (обычный `pnpm install` без фильтра подтянет заодно и их).
 
 Отдельного шага сборки нет — воркер лёгкий, запускается прямо из TypeScript через `tsx` (см. `package.json`), без промежуточного `dist/`. Дальше все пути в примерах — от `services/autopost-worker/`.
 
@@ -62,7 +66,7 @@ pnpm install
 
 ```bash
 scp apps/web/.data/tiktok-tokens.enc apps/web/.data/youtube-tokens.enc apps/web/.data/instagram-tokens.enc \
-  user@сервер:/opt/cueme-content-studio/services/autopost-worker/.data/
+  nikola@сервер:~/CueMeContentStudio/services/autopost-worker/.data/
 ```
 
 Если какая-то из площадок ещё не подключена — просто не копируй соответствующий файл и выключи её через `ENABLE_*=false` в `.env` (шаг 6).
@@ -109,27 +113,50 @@ pnpm start
 
 ## Шаг 9 — systemd
 
+Юнит настроен на пользователя `nikola` (та же схема, что у cueme-bot — без отдельного системного аккаунта):
+
 ```bash
-sudo useradd --system --no-create-home autopost || true
 sudo cp deploy/autopost-worker.service /etc/systemd/system/
-```
-
-Отредактировать в скопированном юните пути `/opt/autopost-worker` на реальный путь (`/opt/cueme-content-studio/services/autopost-worker`), и владельца файлов:
-
-```bash
-sudo chown -R autopost:autopost /opt/cueme-content-studio/services/autopost-worker
 sudo systemctl daemon-reload
 sudo systemctl enable --now autopost-worker.service
 ```
 
-Юнит уже содержит `MemoryMax=256M`, `CPUQuota=25%` и `Restart=on-failure` — процесс лёгкий, лимиты с запасом, но не безграничные, чтобы не мешать `cueme-bot` на том же сервере.
+Юнит уже содержит `MemoryMax=256M`, `CPUQuota=25%` и `Restart=on-failure` — процесс лёгкий, лимиты с запасом, но не безграничные, чтобы не мешать `cueme-bot` на том же сервере. Если реальный путь на сервере отличается от `/home/nikola/CueMeContentStudio` — поправь пути в файле перед копированием.
+
+## Шаг 10 — автообновление с GitHub (cron)
+
+Полностью повторяет схему `~/CueMe/auto_update.sh` у cueme-bot: cron каждую минуту дёргает скрипт, тот сравнивает `HEAD` с `origin/main` и, если есть отличия — подтягивает, ставит зависимости, перезапускает сервис. Никаких GitHub Actions/вебхуков.
+
+1. Разрешить `nikola` перезапускать именно этот юнит без пароля (и только его):
+   ```bash
+   sudo cp ~/CueMeContentStudio/services/autopost-worker/deploy/autopost-worker-sudoers /etc/sudoers.d/autopost-worker
+   sudo chmod 440 /etc/sudoers.d/autopost-worker
+   sudo visudo -c
+   ```
+2. Добавить cron-задачу (как у cueme-bot — своя, не через `-u`):
+   ```bash
+   crontab -e
+   ```
+   и добавить строку рядом с уже существующей для `auto_update.sh`:
+   ```
+   * * * * * /home/nikola/CueMeContentStudio/services/autopost-worker/deploy/update.sh
+   ```
+3. Проверить руками, что скрипт вообще работает, прежде чем полагаться на cron:
+   ```bash
+   ~/CueMeContentStudio/services/autopost-worker/deploy/update.sh
+   cat ~/CueMeContentStudio/services/autopost-worker/update.log
+   ```
+   Должна появиться строка «Обновлений нет.» (если `HEAD` и так совпадает с `origin/main`). Проверить, что реальное обновление тоже сработает — сделать пустой коммит и запушить (`git commit --allow-empty -m "test" && git push`), подождать минуту, посмотреть `update.log` — должно появиться «Найдено обновление, применяем...» → «Обновление применено, воркер перезапущен.».
+
+`update.sh` тянет **весь репозиторий** (не только `services/autopost-worker`) и делает `pnpm install` из корня — так подхватятся и изменения в `packages/publish-clients`, от которого воркер зависит. Перезапускается только `autopost-worker.service`, cueme-bot он не трогает. Как и у cueme-bot, лог пишется при **каждой** проверке (даже если обновлений нет) — стоит иногда почистить `update.log`, чтобы не рос бесконечно.
 
 ## Проверка и логи
 
 ```bash
 sudo systemctl status autopost-worker
 journalctl -u autopost-worker -f       # живой вывод
-tail -f /opt/cueme-content-studio/services/autopost-worker/autopost-worker.log
+tail -f ~/CueMeContentStudio/services/autopost-worker/autopost-worker.log
+tail -f ~/CueMeContentStudio/services/autopost-worker/update.log
 ```
 
 ## Частые проблемы
@@ -139,6 +166,7 @@ tail -f /opt/cueme-content-studio/services/autopost-worker/autopost-worker.log
 - **«TikTok/YouTube/Instagram не подключён»** — не скопированы `*.enc`-файлы (шаг 5) либо `TOKEN_ENCRYPTION_KEY` в `.env` воркера не совпадает с тем, что был при их сохранении.
 - **Слот наступил, но ничего не публикуется** — проверь лог: если там «очередь пуста», значит на момент слота новых видео в Drive не было, это ожидаемое поведение (см. требования — пропускаем, не постим ничего).
 - **Instagram: «Meta не обработала видео за отведённое время»** — контейнер завис в `IN_PROGRESS` дольше ~3 минут; обычно временная проблема на стороне Meta, попробует в следующий раз при следующем видео (текущее уже переехало в `posted`, вручную решить, публиковать ли его отдельно).
+- **Автообновление не срабатывает** — проверить `update.log`; частая причина — `git pull` отказался мержить из-за локальных изменений/конфликта на сервере (на сервере вообще не должно быть локальных правок — туда только пуш из GitHub, не наоборот) либо `sudoers`-правило не подхватилось (`sudo visudo -c`).
 
 ## Где смотреть код, если что-то непонятно
 
@@ -146,4 +174,5 @@ tail -f /opt/cueme-content-studio/services/autopost-worker/autopost-worker.log
 - `services/autopost-worker/src/schedule.ts` — логика расписания
 - `services/autopost-worker/src/publish.ts` — публикация на все три площадки
 - `services/autopost-worker/src/index.ts` — главный цикл
+- `services/autopost-worker/deploy/update.sh` — скрипт автообновления (cron)
 - `packages/publish-clients/` — общий код публикации, тот же, что использует Content Studio
