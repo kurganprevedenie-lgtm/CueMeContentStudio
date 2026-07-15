@@ -5,6 +5,12 @@
 # изменения, ставит зависимости и перезапускает systemd-юнит.
 cd /home/nikola/CueMeContentStudio
 
+# cron видит только системный PATH, без nvm (Node тут стоит через nvm, в
+# домашней папке) — без этого "pnpm" внутри скрипта не найдётся, тот же
+# эффект, что EnvironmentFile/шебанг ловили в autopost-worker.service.
+# Версию поправить, если сменится (см. `which node` на сервере).
+export PATH="/home/nikola/.nvm/versions/node/v24.18.0/bin:$PATH"
+
 LOG=/home/nikola/CueMeContentStudio/services/autopost-worker/update.log
 
 git fetch origin main
