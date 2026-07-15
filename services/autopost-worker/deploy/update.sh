@@ -1,26 +1,38 @@
 #!/bin/bash
-# Та же схема, что и ~/CueMe/auto_update.sh у cueme-bot: cron дёргает этот
-# скрипт каждую минуту от обычного пользователя (не системного аккаунта),
-# скрипт сам сравнивает HEAD с origin/main и, если есть отличия, подтягивает
-# изменения, ставит зависимости и перезапускает systemd-юнит.
-cd /home/nikola/CueMeContentStudio
+# Та же идея, что и ~/CueMe/auto_update.sh у cueme-bot: cron дёргает скрипт
+# каждую минуту, тот сравнивает HEAD с origin/main и при отличии подтягивает
+# изменения, ставит зависимости и перезапускает сервис.
+#
+# Два отличия от наивной версии — защита от "слабого сервера" с нестабильной
+# сетью до GitHub:
+#  1. flock -n: если предыдущий запуск ещё идёт (git завис на сети), новый
+#     минутный запуск просто выходит, а не плодит параллельные git-процессы.
+#  2. timeout на git: зависший fetch/pull умирает через 60с и освобождает
+#     lock, вместо бесконечного зависания.
+
+# Одновременно только один экземпляр (см. п.1)
+exec 9>/tmp/autopost-worker-update.lock
+flock -n 9 || exit 0
 
 # cron видит только системный PATH, без nvm (Node тут стоит через nvm, в
-# домашней папке) — без этого "pnpm" внутри скрипта не найдётся, тот же
-# эффект, что EnvironmentFile/шебанг ловили в autopost-worker.service.
-# Версию поправить, если сменится (см. `which node` на сервере).
+# домашней папке) — иначе "pnpm" внутри скрипта не найдётся.
 export PATH="/home/nikola/.nvm/versions/node/v24.18.0/bin:$PATH"
+
+cd /home/nikola/CueMeContentStudio
 
 LOG=/home/nikola/CueMeContentStudio/services/autopost-worker/update.log
 
-git fetch origin main
+if ! timeout 60 git fetch origin main >> "$LOG" 2>&1; then
+    echo "$(date): git fetch не удался или таймаут (GitHub недоступен?) — пропускаю" >> "$LOG"
+    exit 0
+fi
+
 LOCAL=$(git rev-parse HEAD)
 REMOTE=$(git rev-parse origin/main)
 
 if [ "$LOCAL" != "$REMOTE" ]; then
     echo "$(date): Найдено обновление, применяем..." >> "$LOG"
-    git pull origin main >> "$LOG" 2>&1
-    if [ $? -ne 0 ]; then
+    if ! timeout 60 git pull origin main >> "$LOG" 2>&1; then
         echo "$(date): ОШИБКА при git pull! Обновление НЕ применено." >> "$LOG"
         exit 1
     fi
@@ -33,6 +45,4 @@ if [ "$LOCAL" != "$REMOTE" ]; then
     # его ввести некому), см. NOPASSWD там
     sudo /usr/bin/systemctl restart autopost-worker.service
     echo "$(date): Обновление применено, воркер перезапущен." >> "$LOG"
-else
-    echo "$(date): Обновлений нет." >> "$LOG"
 fi
