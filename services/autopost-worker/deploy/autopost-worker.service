@@ -10,7 +10,9 @@ Type=simple
 User=nikola
 Group=nikola
 WorkingDirectory=/home/nikola/CueMeContentStudio/services/autopost-worker
-EnvironmentFile=/home/nikola/CueMeContentStudio/services/autopost-worker/.env
+# Без EnvironmentFile= — src/config.ts сам грузит .env через dotenv при
+# старте, systemd-директиве тут делать нечего (на этом сервере она к тому же
+# упирается в SELinux-denial на файлы в домашней папке пользователя)
 ExecStart=/home/nikola/CueMeContentStudio/services/autopost-worker/node_modules/.bin/tsx src/index.ts
 Restart=on-failure
 RestartSec=10
