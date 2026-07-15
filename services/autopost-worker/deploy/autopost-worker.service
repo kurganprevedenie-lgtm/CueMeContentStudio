@@ -18,8 +18,14 @@ WorkingDirectory=/home/nikola/CueMeContentStudio/services/autopost-worker
 # nvm (в домашней папке пользователя), systemd видит только системный PATH
 # (/usr/bin и т.п.) и не находит nvm-версию node сам по себе (`which node`
 # на сервере — единственный надёжный способ узнать актуальный путь, версия
-# может смениться при следующем `nvm install`, тогда путь надо будет поправить)
-ExecStart=/home/nikola/.nvm/versions/node/v24.18.0/bin/node /home/nikola/CueMeContentStudio/services/autopost-worker/node_modules/.bin/tsx src/index.ts
+# может смениться при следующем `nvm install`, тогда путь надо будет поправить).
+#
+# tsx подключаем как загрузчик через `--import tsx`, а НЕ запускаем
+# node_modules/.bin/tsx: тот .bin/tsx — sh-обёртка (не JS), node бы упал на
+# ней с SyntaxError; к тому же SELinux не даёт init_t исполнять любой файл из
+# домашней папки (метка user_home_t) — а так исполняется только сам node
+# (bin_t, см. semanage-relabel в шаге 9), а tsx/index.ts лишь читаются.
+ExecStart=/home/nikola/.nvm/versions/node/v24.18.0/bin/node --import tsx src/index.ts
 Restart=on-failure
 RestartSec=10
 
