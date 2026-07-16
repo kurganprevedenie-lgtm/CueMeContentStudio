@@ -19,6 +19,7 @@ import { BotBanner } from "./BotBanner";
 import {
   CueMeNotification,
   cueMeNotificationDurationInFrames,
+  cueMeNotificationLeadSec,
 } from "./CueMeNotification";
 import { getCardState } from "./cardHeight";
 import { ChatWindowCard, getChatWindowCardLayout } from "./ChatWindowCard";
@@ -397,31 +398,48 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
         height={cardHeight}
         overlay={
           // Push-уведомления CueMe — привязаны к сообщениям с isHintMoment (см.
-          // схему Message). Читаем из тех же messages/timings, отдельных props
-          // не заводим. Отдаём как overlay ВНУТРЬ окна чата — карточка обрезает
-          // его по своим границам (overflow), поэтому баннер выезжает из-под
-          // шапки, из верха диалогового окна, а не из верха всего кадра.
-          // Небольшой лид, чтобы подсказка предшествовала реплике.
+          // схему Message), только для темы Telegram iOS (theme.telegram) —
+          // визуально имеет смысл только там. Читаем из тех же messages/timings,
+          // отдельных props не заводим. Отдаём как overlay ВНУТРЬ окна чата —
+          // карточка обрезает его по своим границам (overflow), поэтому баннер
+          // выезжает из-под шапки, из верха диалогового окна, а не из верха
+          // всего кадра. from считается через cueMeNotificationLeadSec (НЕ
+          // cueMeNotificationPrecedeSec — та включает ещё и паузу-дочитку ПЕРЕД
+          // самим уведомлением, которая уже заложена в t.startSec из
+          // VideoPreview.tsx и не должна дублироваться в позиции баннера).
           <>
-            {timings.map((t: MessageTiming) => {
-              const message = messageById.get(t.id);
-              if (!message?.isHintMoment || !message.hintText?.trim())
-                return null;
-              const leadFrames = Math.round(0.4 * fps);
-              const from = Math.max(
-                Math.floor(t.startSec * fps) - leadFrames,
-                0
-              );
-              return (
-                <Sequence
-                  key={`hint-${t.id}`}
-                  from={from}
-                  durationInFrames={cueMeNotificationDurationInFrames(fps)}
-                >
-                  <CueMeNotification text={message.hintText} />
-                </Sequence>
-              );
-            })}
+            {theme.telegram
+              ? timings.map((t: MessageTiming) => {
+                  const message = messageById.get(t.id);
+                  const hintText = message?.hintText?.trim();
+                  if (!message?.isHintMoment || !hintText) return null;
+                  const hintAudioDurationSec = t.hintAudioDurationSec;
+                  const leadFrames = Math.round(
+                    cueMeNotificationLeadSec(hintText, hintAudioDurationSec) * fps
+                  );
+                  const from = Math.max(
+                    Math.floor(t.startSec * fps) - leadFrames,
+                    0
+                  );
+                  return (
+                    <Sequence
+                      key={`hint-${t.id}`}
+                      from={from}
+                      durationInFrames={cueMeNotificationDurationInFrames(
+                        fps,
+                        hintText,
+                        hintAudioDurationSec
+                      )}
+                    >
+                      <CueMeNotification
+                        text={hintText}
+                        audioUrl={message.hintAudioUrl}
+                        audioDurationSec={hintAudioDurationSec}
+                      />
+                    </Sequence>
+                  );
+                })
+              : null}
           </>
         }
       >

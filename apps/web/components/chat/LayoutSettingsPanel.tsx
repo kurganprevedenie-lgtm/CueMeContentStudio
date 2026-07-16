@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckIcon, RotateCcwIcon, StarIcon } from "lucide-react";
 import { useChatStore } from "@cueme/shared";
 
@@ -61,7 +61,16 @@ export function LayoutSettingsPanel() {
   const saveLayoutSettingsAsDefault = useChatStore(
     (s) => s.saveLayoutSettingsAsDefault
   );
+  const hydrateLayoutSettings = useChatStore((s) => s.hydrateLayoutSettings);
   const [justSaved, setJustSaved] = useState(false);
+
+  // Стор всегда стартует с DEFAULT_LAYOUT_SETTINGS (одинаково на сервере и до
+  // гидратации) — сохранённые в localStorage настройки подтягиваются только
+  // здесь, после монтирования, иначе сервер/клиент рисуют разный текст
+  // ("87%" vs "72%") и React падает с hydration mismatch.
+  useEffect(() => {
+    hydrateLayoutSettings();
+  }, [hydrateLayoutSettings]);
 
   const handleSaveAsDefault = () => {
     saveLayoutSettingsAsDefault();

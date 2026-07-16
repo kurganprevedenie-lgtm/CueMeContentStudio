@@ -71,14 +71,19 @@ interface ChatState {
   voiceBySender: Record<string, string>;
   suggestion: Suggestion;
   background: BackgroundSettings;
-  addMessage: (input: {
-    participantIndex: ParticipantIndex;
-    text: string;
-    /** Текст подсказки CueMe перед этим сообщением — задан = isHintMoment */
-    hintText?: string;
-  }) => void;
+  addMessage: (input: { participantIndex: ParticipantIndex; text: string }) => void;
   removeMessage: (id: string) => void;
   clearMessages: () => void;
+  /**
+   * Ставит/снимает подсказку CueMe (isHintMoment/hintText) на уже
+   * добавленное сообщение — настраивается из SuggestionPanel («Подсказка от
+   * CueMe»), не при создании сообщения (см. MessageForm). Пустой/пробельный
+   * text снимает подсказку.
+   */
+  setMessageHint: (id: string, hintText: string) => void;
+  /** Озвучка текста подсказки (ElevenLabs) для конкретного сообщения */
+  setMessageHintAudio: (id: string, audioUrl: string) => void;
+  clearMessageHintAudio: (id: string) => void;
   setTheme: (themeId: ThemeId) => void;
   setParticipant: (index: ParticipantIndex, patch: Partial<Participant>) => void;
   setVoice: (sender: string, voiceId: string) => void;
@@ -101,6 +106,8 @@ interface ChatState {
   /** Вызывается после удаления видео из библиотеки — чистим ссылки на него */
   forgetBackground: (backgroundId: string) => void;
   layoutSettings: LayoutSettings;
+  /** Подтягивает сохранённые в localStorage настройки макета — вызывать один раз после монтирования (см. LayoutSettingsPanel) */
+  hydrateLayoutSettings: () => void;
   setWindowWidthRatio: (v: number) => void;
   setWindowHeightRatio: (v: number) => void;
   setWindowTopMarginRatio: (v: number) => void;
@@ -126,25 +133,56 @@ export const useChatStore = create<ChatState>((set, get) => ({
   voiceBySender: {},
   suggestion: emptySuggestion,
   background: defaultBackground,
-  addMessage: ({ participantIndex, text, hintText }) =>
+  addMessage: ({ participantIndex, text }) =>
     set((state) => {
       const participant = state.participants[participantIndex];
-      const trimmedHint = hintText?.trim();
       const message: Message = {
         id: crypto.randomUUID(),
         sender: participant.name,
         text,
         side: participantIndex === 0 ? "left" : "right",
         avatarUrl: participant.avatarUrl,
-        ...(trimmedHint
-          ? { isHintMoment: true, hintText: trimmedHint }
-          : {}),
       };
       return { messages: [...state.messages, message] };
     }),
   removeMessage: (id) =>
     set((state) => ({
       messages: state.messages.filter((m) => m.id !== id),
+    })),
+  setMessageHint: (id, hintText) =>
+    set((state) => {
+      const trimmed = hintText.trim();
+      return {
+        messages: state.messages.map((m) => {
+          if (m.id !== id) return m;
+          if (!trimmed) {
+            const {
+              isHintMoment: _isHintMoment,
+              hintText: _hintText,
+              hintAudioUrl: _hintAudioUrl,
+              ...rest
+            } = m;
+            return rest;
+          }
+          // текст изменился — старая озвучка ему больше не соответствует
+          const { hintAudioUrl: _staleAudio, ...rest } = m;
+          return { ...rest, isHintMoment: true, hintText: trimmed };
+        }),
+      };
+    }),
+  setMessageHintAudio: (id, audioUrl) =>
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === id ? { ...m, hintAudioUrl: audioUrl } : m
+      ),
+    })),
+  clearMessageHintAudio: (id) =>
+    set((state) => ({
+      messages: state.messages.map((m) => {
+        if (m.id !== id) return m;
+        const { hintAudioUrl: _hintAudioUrl, ...rest } = m;
+        return rest;
+      }),
     })),
   clearMessages: () => set({ messages: [] }),
   setTheme: (themeId) => set({ themeId }),
@@ -212,7 +250,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
             : state.background,
       };
     }),
-  layoutSettings: userDefaultLayoutSettings,
+  // Всегда стартуем с DEFAULT_LAYOUT_SETTINGS (не userDefaultLayoutSettings) —
+  // это значение одинаково и на сервере, и при первом клиентском рендере
+  // (до гидратации), в отличие от localStorage. Сохранённое значение
+  // подтягивается отдельно, уже после монтирования, через hydrateLayoutSettings()
+  // (см. LayoutSettingsPanel) — так React обновит текст уже после гидратации,
+  // без рассинхрона "сервер написал 87%, клиент — 72%".
+  layoutSettings: DEFAULT_LAYOUT_SETTINGS,
+  hydrateLayoutSettings: () => {
+    userDefaultLayoutSettings = loadUserDefaultLayoutSettings();
+    set({ layoutSettings: userDefaultLayoutSettings });
+  },
   setWindowWidthRatio: (v) =>
     set((state) => ({
       layoutSettings: { ...state.layoutSettings, windowWidthRatio: v },

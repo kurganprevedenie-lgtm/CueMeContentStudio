@@ -14,6 +14,8 @@ export interface Message {
   isHintMoment?: boolean;
   /** Текст подсказки для уведомления CueMe (когда isHintMoment) */
   hintText?: string;
+  /** data-URL озвучки подсказки (ElevenLabs, см. SuggestionPanel) — необязательна */
+  hintAudioUrl?: string;
 }
 
 /** Один из двух постоянных участников переписки */

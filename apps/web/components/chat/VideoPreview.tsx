@@ -10,6 +10,7 @@ import {
   VIDEO_FPS,
   VIDEO_HEIGHT,
   VIDEO_WIDTH,
+  cueMeNotificationPrecedeSec,
   totalDurationInFrames,
   type BackgroundVideoContent,
   type MessageTiming,
@@ -160,11 +161,34 @@ export function VideoPreview() {
       let cursor = LEAD_IN_SEC;
 
       for (const message of messages) {
+        // Уведомление CueMe (только для темы Telegram iOS, см. ChatVideo) должно
+        // полностью пройти цикл (появиться/повисеть/скрыться) и ещё немного
+        // помолчать ДО того, как появится сообщение — иначе реплика всплывёт
+        // поверх ещё не скрывшегося баннера. cueMeNotificationPrecedeSec — то
+        // же самое (плюс пауза-дочитка), которым ChatVideo смещает `from`
+        // баннера назад от startSec сообщения, здесь просто сдвигаем сам
+        // startSec вперёд. Если подсказка озвучена — держим баннер РЕАЛЬНОЕ
+        // время звучания (не оценку по тексту), как и с audioUrl сообщений.
+        const hintText = message.hintText?.trim();
+        let hintAudioDurationSec: number | undefined;
+        if (theme.telegram && message.isHintMoment && hintText) {
+          if (message.hintAudioUrl) {
+            hintAudioDurationSec = await getAudioDurationInSeconds(
+              message.hintAudioUrl
+            );
+          }
+          cursor += cueMeNotificationPrecedeSec(hintText, hintAudioDurationSec);
+        }
         // длительность — только из реального аудиофайла, никаких оценок по тексту
         const durationSec = message.audioUrl
           ? await getAudioDurationInSeconds(message.audioUrl)
           : SILENT_DURATION_SEC;
-        result.push({ id: message.id, startSec: cursor, durationSec });
+        result.push({
+          id: message.id,
+          startSec: cursor,
+          durationSec,
+          ...(hintAudioDurationSec ? { hintAudioDurationSec } : {}),
+        });
         cursor += durationSec + GAP_SEC;
 
         if (hasSuggestion && message.id === resolvedAnchorId) {

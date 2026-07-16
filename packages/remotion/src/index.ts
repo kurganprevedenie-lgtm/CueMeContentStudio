@@ -5,6 +5,10 @@ export { BotBanner, type BotBannerProps } from "./BotBanner";
 export {
   CueMeNotification,
   cueMeNotificationDurationInFrames,
+  cueMeNotificationDurationSec,
+  cueMeNotificationLeadSec,
+  cueMeNotificationPrecedeSec,
+  estimateHintHoldSec,
   type CueMeNotificationProps,
 } from "./CueMeNotification";
 export {

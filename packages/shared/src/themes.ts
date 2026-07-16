@@ -42,6 +42,33 @@ export interface ChatTheme {
 }
 
 export const themes: Record<ThemeId, ChatTheme> = {
+  "telegram-ios": {
+    id: "telegram-ios",
+    name: "Telegram iOS",
+    fontFamily:
+      '-apple-system, "SF Pro Text", BlinkMacSystemFont, "Segoe UI", sans-serif',
+    // container.background — шапка/подложка карточки (белая), сами сообщения
+    // рисуются поверх telegram.chatBackground (см. ChatVideo/ChatContainer)
+    container: { background: "#ffffff", text: "#000000" },
+    senderLabel: "#3aa0e0",
+    bubble: {
+      // заметно круглее iMessage
+      borderRadius: "20px",
+      // входящие — белые, исходящие — бледно-зелёные с ТЁМНЫМ текстом (как в
+      // Telegram iOS light из референса, НЕ синие)
+      left: { background: "#ffffff", text: "#000000" },
+      right: { background: "#effdde", text: "#000000" },
+    },
+    telegram: {
+      headerStatus: "был(а) недавно",
+      // мятно-зелёные «обои» Telegram (сплошной цвет — паттерн-дудлы опущены)
+      chatBackground: "#d2ecd0",
+      // синий акцент: кнопка «Назад» в шапке и галочки прочтения ✓✓
+      accent: "#3aa0e0",
+      incomingMeta: "#9aa79a",
+      outgoingMeta: "#67a860",
+    },
+  },
   "imessage-light": {
     id: "imessage-light",
     name: "iMessage — светлая",
@@ -84,33 +111,6 @@ export const themes: Record<ThemeId, ChatTheme> = {
       },
     },
   },
-  "telegram-ios": {
-    id: "telegram-ios",
-    name: "Telegram iOS",
-    fontFamily:
-      '-apple-system, "SF Pro Text", BlinkMacSystemFont, "Segoe UI", sans-serif',
-    // container.background — шапка/подложка карточки (белая), сами сообщения
-    // рисуются поверх telegram.chatBackground (см. ChatVideo/ChatContainer)
-    container: { background: "#ffffff", text: "#000000" },
-    senderLabel: "#3aa0e0",
-    bubble: {
-      // заметно круглее iMessage
-      borderRadius: "20px",
-      // входящие — белые, исходящие — бледно-зелёные с ТЁМНЫМ текстом (как в
-      // Telegram iOS light из референса, НЕ синие)
-      left: { background: "#ffffff", text: "#000000" },
-      right: { background: "#effdde", text: "#000000" },
-    },
-    telegram: {
-      headerStatus: "был(а) недавно",
-      // мятно-зелёные «обои» Telegram (сплошной цвет — паттерн-дудлы опущены)
-      chatBackground: "#d2ecd0",
-      // синий акцент: кнопка «Назад» в шапке и галочки прочтения ✓✓
-      accent: "#3aa0e0",
-      incomingMeta: "#9aa79a",
-      outgoingMeta: "#67a860",
-    },
-  },
 };
 
-export const defaultThemeId: ThemeId = "imessage-light";
+export const defaultThemeId: ThemeId = "telegram-ios";

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { SparklesIcon } from "lucide-react";
 import { useChatStore, type ParticipantIndex } from "@cueme/shared";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,23 +14,14 @@ export function MessageForm() {
   const addMessage = useChatStore((s) => s.addMessage);
   const [activeIndex, setActiveIndex] = useState<ParticipantIndex>(0);
   const [text, setText] = useState("");
-  const [hintEnabled, setHintEnabled] = useState(false);
-  const [hintText, setHintText] = useState("");
 
   const canSubmit = text.trim().length > 0;
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!canSubmit) return;
-    addMessage({
-      participantIndex: activeIndex,
-      text: text.trim(),
-      hintText: hintEnabled && hintText.trim() ? hintText.trim() : undefined,
-    });
+    addMessage({ participantIndex: activeIndex, text: text.trim() });
     setText("");
-    // подсказка одноразовая — сбрасываем, чтобы не прилипла к следующему сообщению
-    setHintText("");
-    setHintEnabled(false);
   };
 
   return (
@@ -82,31 +72,6 @@ export function MessageForm() {
             rows={3}
             autoFocus
           />
-
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => setHintEnabled((v) => !v)}
-              className={cn(
-                "flex items-center gap-2 self-start rounded-lg border px-3 py-1.5 text-sm transition-colors",
-                hintEnabled
-                  ? "border-primary bg-primary/10 text-foreground"
-                  : "border-border text-muted-foreground hover:bg-muted"
-              )}
-            >
-              <SparklesIcon className="size-4" />
-              Показать подсказку CueMe перед этим сообщением
-            </button>
-            {hintEnabled ? (
-              <Textarea
-                value={hintText}
-                onChange={(e) => setHintText(e.target.value)}
-                placeholder="Текст подсказки, например: по переписке с ним ты обычно пишешь короче — вот вариант ответа"
-                rows={2}
-              />
-            ) : null}
-          </div>
-
           <Button type="submit" disabled={!canSubmit}>
             Добавить в диалог
           </Button>

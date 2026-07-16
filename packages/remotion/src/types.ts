@@ -19,6 +19,13 @@ export interface MessageTiming {
   startSec: number;
   /** Сколько секунд сообщение «звучит» (длительность аудио или пауза по умолчанию) */
   durationSec: number;
+  /**
+   * РЕАЛЬНАЯ длительность озвучки подсказки CueMe (Message.hintAudioUrl),
+   * если она озвучена — из getAudioDurationInSeconds, не оценка по тексту.
+   * Используется CueMeNotification/cueMeNotificationPrecedeSec, чтобы баннер
+   * держался ровно на время озвучки.
+   */
+  hintAudioDurationSec?: number;
 }
 
 /** Когда на видео показывать бейдж-подсказку от CueMe и сколько секунд он виден */
