@@ -6,6 +6,14 @@ export interface Message {
   avatarUrl?: string;
   /** data-URL сгенерированной озвучки (этап 3+) */
   audioUrl?: string;
+  /**
+   * Момент «подсказки от бота»: в этот момент видео показывает
+   * push-уведомление CueMe (см. CueMeNotification в packages/remotion).
+   * Привязано к конкретному сообщению, а не к произвольному кадру.
+   */
+  isHintMoment?: boolean;
+  /** Текст подсказки для уведомления CueMe (когда isHintMoment) */
+  hintText?: string;
 }
 
 /** Один из двух постоянных участников переписки */

@@ -32,7 +32,9 @@ export function ChatContainer() {
     <div
       className="flex h-full flex-col gap-4 overflow-y-auto p-4"
       style={{
-        background: theme.container.background,
+        // Telegram: сообщения на «обоях», иначе белые входящие пузыри
+        // сливались бы с белой подложкой container.background
+        background: theme.telegram?.chatBackground ?? theme.container.background,
         color: theme.container.text,
         fontFamily: theme.fontFamily,
       }}

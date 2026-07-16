@@ -1,4 +1,8 @@
-export type ThemeId = "imessage-light" | "imessage-dark" | "instagram-dm";
+export type ThemeId =
+  | "imessage-light"
+  | "imessage-dark"
+  | "instagram-dm"
+  | "telegram-ios";
 
 export interface ChatTheme {
   id: ThemeId;
@@ -15,6 +19,25 @@ export interface ChatTheme {
     borderRadius: string;
     left: { background: string; text: string };
     right: { background: string; text: string };
+  };
+  /**
+   * Доп. оформление в стиле Telegram iOS — не задано (iMessage/Instagram) =
+   * прежнее поведение. Задано = telegram-шапка (аватар/имя/статус/иконки),
+   * фон-«обои» области сообщений, время + галочки прочтения внутри пузыря.
+   * Читается в ChatBubble/VideoBubble/ChatWindowCard/ChatContainer — не
+   * отдельная архитектура, а ветка внутри существующих компонентов.
+   */
+  telegram?: {
+    /** Статус контакта под именем в шапке, например "в сети" */
+    headerStatus: string;
+    /** Фон («обои») области сообщений — сплошной цвет или градиент */
+    chatBackground: string;
+    /** Цвет иконок звонка/меню и акцентов в шапке */
+    accent: string;
+    /** Цвет времени внутри входящего пузыря */
+    incomingMeta: string;
+    /** Цвет времени + галочек прочтения внутри исходящего пузыря */
+    outgoingMeta: string;
   };
 }
 
@@ -59,6 +82,32 @@ export const themes: Record<ThemeId, ChatTheme> = {
         background: "linear-gradient(135deg, #4f5bd5 0%, #962fbf 60%, #d62976 100%)",
         text: "#ffffff",
       },
+    },
+  },
+  "telegram-ios": {
+    id: "telegram-ios",
+    name: "Telegram iOS",
+    fontFamily:
+      '-apple-system, "SF Pro Text", BlinkMacSystemFont, "Segoe UI", sans-serif',
+    // container.background — шапка/подложка карточки (белая), сами сообщения
+    // рисуются поверх telegram.chatBackground (см. ChatVideo/ChatContainer)
+    container: { background: "#ffffff", text: "#000000" },
+    senderLabel: "#3390ec",
+    bubble: {
+      // заметно круглее iMessage
+      borderRadius: "20px",
+      left: { background: "#ffffff", text: "#000000" },
+      right: {
+        background: "linear-gradient(135deg, #4aa3f0 0%, #3390ec 100%)",
+        text: "#ffffff",
+      },
+    },
+    telegram: {
+      headerStatus: "в сети",
+      chatBackground: "linear-gradient(180deg, #c6d3e1 0%, #d3dde8 100%)",
+      accent: "#3390ec",
+      incomingMeta: "#8a9aa6",
+      outgoingMeta: "#d6ecff",
     },
   },
 };

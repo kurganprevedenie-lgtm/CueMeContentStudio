@@ -16,6 +16,10 @@ import { DEFAULT_LAYOUT_SETTINGS } from "@cueme/shared";
 import { getScaledBubbleMetrics, type ScaledBubbleMetrics } from "./bubbleMetrics";
 import { BackgroundVideo } from "./BackgroundVideo";
 import { BotBanner } from "./BotBanner";
+import {
+  CueMeNotification,
+  cueMeNotificationDurationInFrames,
+} from "./CueMeNotification";
 import { getCardState } from "./cardHeight";
 import { ChatWindowCard, getChatWindowCardLayout } from "./ChatWindowCard";
 import type {
@@ -34,6 +38,31 @@ const SIDE_PADDING = 48;
 const SUGGESTION_FONT_SIZE = 56;
 const SUGGESTION_LOGO_HEIGHT = 140;
 
+/** Статичное время отправки для стилизованного мок-чата (реального timestamp у Message нет) */
+const MESSAGE_TIME = "9:41";
+
+/** Двойная галочка «прочитано» Telegram — инлайн-SVG (см. тот же компонент в apps/web ChatBubble) */
+const TelegramDoubleCheck: React.FC<{ color: string; size: number }> = ({
+  color,
+  size,
+}) => (
+  <svg
+    width={size}
+    height={(size * 11) / 16}
+    viewBox="0 0 16 11"
+    fill="none"
+    style={{ display: "block" }}
+  >
+    <path
+      d="M1 6.2 3.4 8.6 8.6 2.4M6.6 8 7.4 8.8 12.6 2.6"
+      stroke={color}
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 const VideoBubble: React.FC<{
   message: Message;
   theme: ChatTheme;
@@ -48,6 +77,8 @@ const VideoBubble: React.FC<{
   const { fps } = useVideoConfig();
   const isRight = message.side === "right";
   const bubble = isRight ? theme.bubble.right : theme.bubble.left;
+  const tg = theme.telegram;
+  const metaColor = tg ? (isRight ? tg.outgoingMeta : tg.incomingMeta) : "";
 
   const progress = spring({
     frame: frame - appearFrame,
@@ -62,6 +93,8 @@ const VideoBubble: React.FC<{
   const cornerRadius = theme.bubble.borderRadius
     ? `calc(${theme.bubble.borderRadius} * 2.2)`
     : "40px";
+  // «Хвостик»: у Telegram острее (меньше радиус), чем прежний общий 14px
+  const tailRadius = tg ? 8 : 14;
 
   return (
     <div
@@ -137,12 +170,38 @@ const VideoBubble: React.FC<{
             // React ругается на смешивание shorthand и longhand в одном style
             borderTopLeftRadius: cornerRadius,
             borderTopRightRadius: cornerRadius,
-            borderBottomLeftRadius: isRight ? cornerRadius : 14,
-            borderBottomRightRadius: isRight ? 14 : cornerRadius,
+            borderBottomLeftRadius: isRight ? cornerRadius : tailRadius,
+            borderBottomRightRadius: isRight ? tailRadius : cornerRadius,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
+            boxShadow: tg ? "0 2px 3px rgba(0,0,0,0.10)" : undefined,
           }}
         >
+          {/* Telegram: время + галочки прочтения float:right (см. ChatBubble.tsx) —
+              float не добавляет гарантированную лишнюю строку, поэтому оценка
+              высоты карточки (cardHeight.ts) остаётся валидной */}
+          {tg ? (
+            <span
+              style={{
+                float: "right",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: metrics.bubbleFontSize * 0.14,
+                marginLeft: metrics.bubbleFontSize * 0.3,
+                transform: `translateY(${metrics.bubbleFontSize * 0.28}px)`,
+                fontSize: metrics.bubbleFontSize * 0.6,
+                color: metaColor,
+              }}
+            >
+              {MESSAGE_TIME}
+              {isRight ? (
+                <TelegramDoubleCheck
+                  color={metaColor}
+                  size={metrics.bubbleFontSize * 0.62}
+                />
+              ) : null}
+            </span>
+          ) : null}
           {message.text}
         </div>
       </div>
@@ -345,6 +404,9 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
             height: "100%",
             padding: `${metrics.cardContentTopPadding}px ${metrics.cardContentSidePadding}px ${metrics.cardContentBottomPadding}px`,
             overflow: "hidden",
+            // Telegram: «обои» под сообщениями (белые входящие пузыри иначе
+            // сливались бы с белой подложкой карточки container.background)
+            background: theme.telegram?.chatBackground,
           }}
         >
           {visible.map((t, index) => {
@@ -410,6 +472,26 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
           theme={theme}
         />
       ) : null}
+      {/* Push-уведомления CueMe — привязаны к сообщениям с isHintMoment (см.
+          схему Message). Читаем из тех же messages/timings, что уже пришли в
+          composition, отдельных props не заводим. Рендерим последними — поверх
+          всего (уведомление приходит сверху экрана). Небольшой лид перед
+          сообщением, чтобы подсказка предшествовала реплике. */}
+      {timings.map((t: MessageTiming) => {
+        const message = messageById.get(t.id);
+        if (!message?.isHintMoment || !message.hintText?.trim()) return null;
+        const leadFrames = Math.round(0.4 * fps);
+        const from = Math.max(Math.floor(t.startSec * fps) - leadFrames, 0);
+        return (
+          <Sequence
+            key={`hint-${t.id}`}
+            from={from}
+            durationInFrames={cueMeNotificationDurationInFrames(fps)}
+          >
+            <CueMeNotification text={message.hintText} />
+          </Sequence>
+        );
+      })}
     </AbsoluteFill>
   );
 };

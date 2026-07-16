@@ -48,6 +48,12 @@ const defaultBackground: BackgroundSettings = {
   overlayOpacity: 0.3,
 };
 
+// Модуль-локальный ambient: в этом пакете нет @types/node, но обращение
+// должно остаться буквально `process.env.NEXT_PUBLIC_*`, чтобы Next заинлайнил
+// значение в браузерный бандл (globalThis.process такое инлайнирование не
+// ловит). Declare стирается при компиляции и не мешает web-tsc (там node-типы).
+declare const process: { env: Record<string, string | undefined> };
+
 // NEXT_PUBLIC_ — значение должно быть доступно в браузере: и превью
 // (Remotion Player), и форма настроек баннера рендерятся на клиенте.
 // Не хардкодим юзернейм бота в коде — только дефолт текстового поля, само
@@ -65,7 +71,12 @@ interface ChatState {
   voiceBySender: Record<string, string>;
   suggestion: Suggestion;
   background: BackgroundSettings;
-  addMessage: (input: { participantIndex: ParticipantIndex; text: string }) => void;
+  addMessage: (input: {
+    participantIndex: ParticipantIndex;
+    text: string;
+    /** Текст подсказки CueMe перед этим сообщением — задан = isHintMoment */
+    hintText?: string;
+  }) => void;
   removeMessage: (id: string) => void;
   clearMessages: () => void;
   setTheme: (themeId: ThemeId) => void;
@@ -115,15 +126,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
   voiceBySender: {},
   suggestion: emptySuggestion,
   background: defaultBackground,
-  addMessage: ({ participantIndex, text }) =>
+  addMessage: ({ participantIndex, text, hintText }) =>
     set((state) => {
       const participant = state.participants[participantIndex];
+      const trimmedHint = hintText?.trim();
       const message: Message = {
         id: crypto.randomUUID(),
         sender: participant.name,
         text,
         side: participantIndex === 0 ? "left" : "right",
         avatarUrl: participant.avatarUrl,
+        ...(trimmedHint
+          ? { isHintMoment: true, hintText: trimmedHint }
+          : {}),
       };
       return { messages: [...state.messages, message] };
     }),

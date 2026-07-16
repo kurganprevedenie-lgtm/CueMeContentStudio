@@ -3,6 +3,11 @@ export { RemotionRoot } from "./Root";
 export { BackgroundVideo } from "./BackgroundVideo";
 export { BotBanner, type BotBannerProps } from "./BotBanner";
 export {
+  CueMeNotification,
+  cueMeNotificationDurationInFrames,
+  type CueMeNotificationProps,
+} from "./CueMeNotification";
+export {
   ChatWindowCard,
   getChatWindowCardLayout,
   type ChatHeaderStyle,
