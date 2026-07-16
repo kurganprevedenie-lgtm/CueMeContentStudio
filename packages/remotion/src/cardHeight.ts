@@ -1,7 +1,7 @@
 import { interpolate } from "remotion";
 import type { Message } from "@cueme/shared";
 
-import type { ScaledBubbleMetrics } from "./bubbleMetrics";
+import { getImageDisplaySize, type ScaledBubbleMetrics } from "./bubbleMetrics";
 import type { MessageTiming } from "./types";
 
 /**
@@ -22,14 +22,22 @@ const LINE_COUNT_SAFETY_MARGIN = 1.3;
  * больше, чем нужно на самом деле.
  */
 export function estimateMessageBlockHeight(
-  text: string,
+  message: Pick<Message, "text" | "imageUrl" | "imageAspectRatio">,
   showLabel: boolean,
   metrics: ScaledBubbleMetrics
 ): number {
-  const lines = Math.max(1, Math.ceil(text.length / metrics.charsPerLine));
+  const text = message.text;
+  const lines = text ? Math.max(1, Math.ceil(text.length / metrics.charsPerLine)) : 0;
+  const textHeight = lines * metrics.bubbleLineHeight * LINE_COUNT_SAFETY_MARGIN;
+  const imageHeight =
+    message.imageUrl && message.imageAspectRatio
+      ? getImageDisplaySize(message.imageAspectRatio, metrics).height +
+        (text ? metrics.imageTextGap : 0)
+      : 0;
   return (
     (showLabel ? metrics.senderLabelBlockHeight : 0) +
-    lines * metrics.bubbleLineHeight * LINE_COUNT_SAFETY_MARGIN +
+    imageHeight +
+    textHeight +
     metrics.bubbleVerticalPaddingTotal
   );
 }
@@ -79,7 +87,7 @@ function computeCycles(
     const sameSenderAsPrevious =
       current.messages.length > 0 && previousSenderInCycle === message.sender;
     const blockHeight = estimateMessageBlockHeight(
-      message.text,
+      message,
       showLabels && !sameSenderAsPrevious,
       metrics
     );
@@ -108,7 +116,7 @@ function computeCycles(
     // первое сообщение цикла всегда с подписью и без отступа перед собой
     const isFirstInCycle = current.messages.length === 0;
     const finalBlockHeight = isFirstInCycle
-      ? estimateMessageBlockHeight(message.text, showLabels, metrics)
+      ? estimateMessageBlockHeight(message, showLabels, metrics)
       : blockHeight;
     const gap = isFirstInCycle
       ? 0

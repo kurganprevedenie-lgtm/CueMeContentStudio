@@ -19,6 +19,7 @@ export {
 } from "./ChatWindowCard";
 export {
   getScaledBubbleMetrics,
+  getImageDisplaySize,
   type ScaledBubbleMetrics,
 } from "./bubbleMetrics";
 export {

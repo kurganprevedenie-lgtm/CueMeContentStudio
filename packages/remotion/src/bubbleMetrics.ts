@@ -17,6 +17,19 @@ export const BASE_BUBBLE_PADDING_HORIZONTAL = 38;
 /** Добавка к LABEL_FONT_SIZE, дающая высоту строки-подписи + отступ под ней */
 export const BASE_SENDER_LABEL_EXTRA = 14;
 
+/**
+ * Прикреплённое к сообщению фото вписывается в эту рамку ("object-fit:
+ * contain"), а не растягивается по реальным пикселям файла — иначе один
+ * портретный кадр с телефона мог бы раздуть карточку на весь экран.
+ * Пересчитывается в конкретные width/height через getImageDisplaySize()
+ * ниже — то же самое значение использует и рендер (VideoBubble), и оценка
+ * высоты (cardHeight.ts), поэтому они не могут разъехаться.
+ */
+export const BASE_IMAGE_MAX_WIDTH = 480;
+export const BASE_IMAGE_MAX_HEIGHT = 480;
+/** Отступ между фото и текстом, если у сообщения есть и то, и другое */
+export const BASE_IMAGE_TEXT_GAP = 10;
+
 export const BASE_MESSAGE_ROW_GAP = 24;
 export const BASE_MESSAGE_ROW_GAP_SAME_SENDER = 6;
 export const BASE_CARD_CONTENT_TOP_PADDING = 20;
@@ -52,6 +65,30 @@ export interface ScaledBubbleMetrics {
   cardContentSidePadding: number;
   /** Оценка символов на строку — с поправкой на размер шрифта и ширину окна */
   charsPerLine: number;
+  imageMaxWidth: number;
+  imageMaxHeight: number;
+  imageTextGap: number;
+}
+
+/**
+ * Вписывает реальное соотношение сторон фото в рамку
+ * metrics.imageMaxWidth×imageMaxHeight ("object-fit: contain"), возвращая
+ * точные width/height в пикселях кадра — единственное место, где это
+ * считается, чтобы рендер (VideoBubble) и оценка высоты (cardHeight.ts)
+ * гарантированно совпадали.
+ */
+export function getImageDisplaySize(
+  aspectRatio: number,
+  metrics: Pick<ScaledBubbleMetrics, "imageMaxWidth" | "imageMaxHeight">
+): { width: number; height: number } {
+  const safeRatio = aspectRatio > 0 ? aspectRatio : 1;
+  let width = metrics.imageMaxWidth;
+  let height = width / safeRatio;
+  if (height > metrics.imageMaxHeight) {
+    height = metrics.imageMaxHeight;
+    width = height * safeRatio;
+  }
+  return { width, height };
 }
 
 export function getScaledBubbleMetrics(
@@ -79,5 +116,8 @@ export function getScaledBubbleMetrics(
     cardContentBottomPadding: BASE_CARD_CONTENT_BOTTOM_PADDING * spacingScale,
     cardContentSidePadding: BASE_CARD_CONTENT_SIDE_PADDING * spacingScale,
     charsPerLine: Math.max((BASE_CHARS_PER_LINE * widthFactor) / fontScale, 4),
+    imageMaxWidth: BASE_IMAGE_MAX_WIDTH * fontScale,
+    imageMaxHeight: BASE_IMAGE_MAX_HEIGHT * fontScale,
+    imageTextGap: BASE_IMAGE_TEXT_GAP * spacingScale,
   };
 }
