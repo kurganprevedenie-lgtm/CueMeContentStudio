@@ -48,7 +48,12 @@ interface ChatState {
   voiceBySender: Record<string, string>;
   suggestion: Suggestion;
   background: BackgroundSettings;
-  addMessage: (input: { participantIndex: ParticipantIndex; text: string }) => void;
+  addMessage: (input: {
+    participantIndex: ParticipantIndex;
+    text: string;
+    imageUrl?: string;
+    imageAspectRatio?: number;
+  }) => void;
   removeMessage: (id: string) => void;
   clearMessages: () => void;
   /**
@@ -101,7 +106,7 @@ export const useChatStore = create<ChatState>((set) => ({
   voiceBySender: {},
   suggestion: emptySuggestion,
   background: defaultBackground,
-  addMessage: ({ participantIndex, text }) =>
+  addMessage: ({ participantIndex, text, imageUrl, imageAspectRatio }) =>
     set((state) => {
       const participant = state.participants[participantIndex];
       const message: Message = {
@@ -110,6 +115,8 @@ export const useChatStore = create<ChatState>((set) => ({
         text,
         side: participantIndex === 0 ? "left" : "right",
         avatarUrl: participant.avatarUrl,
+        imageUrl,
+        imageAspectRatio,
       };
       return { messages: [...state.messages, message] };
     }),
