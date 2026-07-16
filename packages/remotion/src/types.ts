@@ -6,6 +6,7 @@ import type {
 } from "@cueme/shared";
 
 import type { ChatHeaderStyle } from "./ChatWindowCard";
+import { cueMeNotificationPrecedeSec } from "./CueMeNotification";
 
 /**
  * Тайминг одного сообщения в видео.
@@ -93,9 +94,20 @@ export const VIDEO_HEIGHT = 1920;
 /** Хвост тишины в конце ролика, сек */
 const TAIL_SEC = 1;
 
+/**
+ * messages — опционален по обратной совместимости, но нужен, чтобы учесть
+ * "хвост" уведомления CueMe (см. CueMeNotification), если оно висит ПОСЛЕ
+ * последнего сообщения диалога: сама подсказка длится уже за пределами
+ * startSec+durationSec своего сообщения, и без этого видео обрезалось бы,
+ * пока баннер ещё доигрывает. Для подсказки на любом НЕ последнем сообщении
+ * это не нужно — её время уже "впитано" в startSec следующего сообщения
+ * (см. VideoPreview.tsx), но проверяем все на всякий случай, не только
+ * последнее — дешёво, а порядок timings совпадать с messages не обязан.
+ */
 export function totalDurationInFrames(
   timings: MessageTiming[],
-  suggestionTiming?: SuggestionTiming | null
+  suggestionTiming?: SuggestionTiming | null,
+  messages?: Message[]
 ): number {
   let lastEnd = timings.reduce(
     (max, t) => Math.max(max, t.startSec + t.durationSec),
@@ -106,6 +118,19 @@ export function totalDurationInFrames(
       lastEnd,
       suggestionTiming.startSec + suggestionTiming.durationSec
     );
+  }
+  if (messages) {
+    const messageById = new Map(messages.map((m) => [m.id, m]));
+    for (const t of timings) {
+      const message = messageById.get(t.id);
+      const hintText = message?.hintText?.trim();
+      if (!message?.isHintMoment || !hintText) continue;
+      const hintEnd =
+        t.startSec +
+        t.durationSec +
+        cueMeNotificationPrecedeSec(hintText, t.hintAudioDurationSec);
+      lastEnd = Math.max(lastEnd, hintEnd);
+    }
   }
   return Math.max(Math.ceil((lastEnd + TAIL_SEC) * VIDEO_FPS), VIDEO_FPS * 2);
 }

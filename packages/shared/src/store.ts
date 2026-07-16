@@ -164,9 +164,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
             } = m;
             return rest;
           }
-          // текст изменился — старая озвучка ему больше не соответствует
+          // текст изменился — старая озвучка ему больше не соответствует.
+          // Храним hintText КАК ЕСТЬ (не .trim()) — иначе пробел в конце,
+          // который пользователь только что набрал в Textarea, тут же
+          // обрезался бы обратно следующим рендером controlled-инпута, и
+          // ввести его вообще было бы нельзя. trimmed используется только
+          // для проверки "не пусто ли", обрезка при необходимости — на
+          // стороне чтения (см. ChatVideo.tsx: message.hintText?.trim()).
           const { hintAudioUrl: _staleAudio, ...rest } = m;
-          return { ...rest, isHintMoment: true, hintText: trimmed };
+          return { ...rest, isHintMoment: true, hintText };
         }),
       };
     }),

@@ -266,7 +266,7 @@ export function SuggestionPanel() {
           ) : (
             <>
               <div className="grid gap-2">
-                <Label htmlFor="hint-message">Перед каким сообщением показать</Label>
+                <Label htmlFor="hint-message">После какого сообщения показать</Label>
                 <Select
                   items={hintMessageItems}
                   value={hintMessageId}

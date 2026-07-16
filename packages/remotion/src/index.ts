@@ -4,6 +4,7 @@ export { BackgroundVideo } from "./BackgroundVideo";
 export { BotBanner, type BotBannerProps } from "./BotBanner";
 export {
   CueMeNotification,
+  CUEME_NOTIFICATION_PRE_PAUSE_SEC,
   cueMeNotificationDurationInFrames,
   cueMeNotificationDurationSec,
   cueMeNotificationLeadSec,

@@ -35,7 +35,8 @@ export const RemotionRoot: React.FC = () => {
       calculateMetadata={({ props }) => ({
         durationInFrames: totalDurationInFrames(
           props.timings,
-          props.suggestionTiming
+          props.suggestionTiming,
+          props.messages
         ),
       })}
     />

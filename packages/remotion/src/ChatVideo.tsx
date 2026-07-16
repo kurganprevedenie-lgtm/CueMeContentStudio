@@ -17,9 +17,9 @@ import { getScaledBubbleMetrics, type ScaledBubbleMetrics } from "./bubbleMetric
 import { BackgroundVideo } from "./BackgroundVideo";
 import { BotBanner } from "./BotBanner";
 import {
+  CUEME_NOTIFICATION_PRE_PAUSE_SEC,
   CueMeNotification,
   cueMeNotificationDurationInFrames,
-  cueMeNotificationLeadSec,
 } from "./CueMeNotification";
 import { getCardState } from "./cardHeight";
 import { ChatWindowCard, getChatWindowCardLayout } from "./ChatWindowCard";
@@ -397,16 +397,20 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
         layoutSettings={resolvedLayout}
         height={cardHeight}
         overlay={
-          // Push-уведомления CueMe — привязаны к сообщениям с isHintMoment (см.
-          // схему Message), только для темы Telegram iOS (theme.telegram) —
-          // визуально имеет смысл только там. Читаем из тех же messages/timings,
-          // отдельных props не заводим. Отдаём как overlay ВНУТРЬ окна чата —
-          // карточка обрезает его по своим границам (overflow), поэтому баннер
-          // выезжает из-под шапки, из верха диалогового окна, а не из верха
-          // всего кадра. from считается через cueMeNotificationLeadSec (НЕ
-          // cueMeNotificationPrecedeSec — та включает ещё и паузу-дочитку ПЕРЕД
-          // самим уведомлением, которая уже заложена в t.startSec из
-          // VideoPreview.tsx и не должна дублироваться в позиции баннера).
+          // Push-уведомления CueMe — "после какого сообщения" (см. Message.
+          // isHintMoment/hintText, настраивается в SuggestionPanel), только
+          // для темы Telegram iOS (theme.telegram). Отдаём как overlay ВНУТРЬ
+          // окна чата — карточка обрезает его по своим границам (overflow),
+          // поэтому баннер выезжает из-под шапки, из верха диалогового окна.
+          // from считается ВПЕРЁД от конца ЭТОГО ЖЕ сообщения (t.startSec +
+          // t.durationSec), не назад от следующего — специально: если бы
+          // баннер мог висеть перед сообщением (в т.ч. перед первым), окно
+          // чата в этот момент могло ещё не вырасти (высота = только шапка)
+          // и обрезало бы баннер до нулевой видимой области. После уже
+          // показанного сообщения карточка гарантированно имеет реальную
+          // высоту. VideoPreview.tsx резервирует то же самое время
+          // (cueMeNotificationPrecedeSec) ПОСЛЕ сообщения при расчёте
+          // таймингов — эти два места не могут разъехаться.
           <>
             {theme.telegram
               ? timings.map((t: MessageTiming) => {
@@ -414,12 +418,9 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
                   const hintText = message?.hintText?.trim();
                   if (!message?.isHintMoment || !hintText) return null;
                   const hintAudioDurationSec = t.hintAudioDurationSec;
-                  const leadFrames = Math.round(
-                    cueMeNotificationLeadSec(hintText, hintAudioDurationSec) * fps
-                  );
-                  const from = Math.max(
-                    Math.floor(t.startSec * fps) - leadFrames,
-                    0
+                  const from = Math.round(
+                    (t.startSec + t.durationSec + CUEME_NOTIFICATION_PRE_PAUSE_SEC) *
+                      fps
                   );
                   return (
                     <Sequence

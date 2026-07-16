@@ -161,23 +161,27 @@ export function VideoPreview() {
       let cursor = LEAD_IN_SEC;
 
       for (const message of messages) {
-        // Уведомление CueMe (только для темы Telegram iOS, см. ChatVideo) должно
-        // полностью пройти цикл (появиться/повисеть/скрыться) и ещё немного
-        // помолчать ДО того, как появится сообщение — иначе реплика всплывёт
-        // поверх ещё не скрывшегося баннера. cueMeNotificationPrecedeSec — то
-        // же самое (плюс пауза-дочитка), которым ChatVideo смещает `from`
-        // баннера назад от startSec сообщения, здесь просто сдвигаем сам
-        // startSec вперёд. Если подсказка озвучена — держим баннер РЕАЛЬНОЕ
-        // время звучания (не оценку по тексту), как и с audioUrl сообщений.
+        // Уведомление CueMe (только для темы Telegram iOS, см. ChatVideo) —
+        // "после какого сообщения показать" (см. SuggestionPanel), не перед.
+        // Якорим на уже показанное сообщение специально: если бы баннер мог
+        // висеть ПЕРЕД первым сообщением, окно чата в этот момент ещё не
+        // выросло (высота = только шапка, без области сообщений вообще) и
+        // обрезало бы баннер до нулевой видимой области — а после сообщения
+        // карточка уже гарантированно имеет реальную высоту. Если подсказка
+        // озвучена — реальная длительность её аудио идёт в MessageTiming
+        // ЭТОГО ЖЕ сообщения (hintAudioDurationSec), потому считаем её
+        // заранее, до push.
         const hintText = message.hintText?.trim();
         let hintAudioDurationSec: number | undefined;
-        if (theme.telegram && message.isHintMoment && hintText) {
-          if (message.hintAudioUrl) {
-            hintAudioDurationSec = await getAudioDurationInSeconds(
-              message.hintAudioUrl
-            );
-          }
-          cursor += cueMeNotificationPrecedeSec(hintText, hintAudioDurationSec);
+        if (
+          theme.telegram &&
+          message.isHintMoment &&
+          hintText &&
+          message.hintAudioUrl
+        ) {
+          hintAudioDurationSec = await getAudioDurationInSeconds(
+            message.hintAudioUrl
+          );
         }
         // длительность — только из реального аудиофайла, никаких оценок по тексту
         const durationSec = message.audioUrl
@@ -190,6 +194,12 @@ export function VideoPreview() {
           ...(hintAudioDurationSec ? { hintAudioDurationSec } : {}),
         });
         cursor += durationSec + GAP_SEC;
+
+        // Полный цикл баннера (пауза-дочитка + появиться/повисеть/скрыться +
+        // пауза после) — резервируем ПОСЛЕ этого сообщения и ДО следующего.
+        if (theme.telegram && message.isHintMoment && hintText) {
+          cursor += cueMeNotificationPrecedeSec(hintText, hintAudioDurationSec);
+        }
 
         if (hasSuggestion && message.id === resolvedAnchorId) {
           const suggestionDurationSec = suggestion.audioUrl
@@ -293,12 +303,16 @@ export function VideoPreview() {
               layout: layoutSettings,
               botBanner,
             }}
-            durationInFrames={totalDurationInFrames(timings, suggestionTiming)}
+            durationInFrames={totalDurationInFrames(
+              timings,
+              suggestionTiming,
+              messages
+            )}
             // Открываем превью не на пустом кадре 0 (окно чата ещё не выросло),
             // а сразу на моменте, когда вся переписка уже показана — саму
             // анимацию роста можно посмотреть, перемотав плеер назад
             initialFrame={Math.max(
-              totalDurationInFrames(timings, suggestionTiming) -
+              totalDurationInFrames(timings, suggestionTiming, messages) -
                 Math.round(1.3 * VIDEO_FPS),
               0
             )}
