@@ -13,7 +13,11 @@ import {
 import type { ChatTheme, LayoutSettings, Message } from "@cueme/shared";
 import { DEFAULT_LAYOUT_SETTINGS } from "@cueme/shared";
 
-import { getScaledBubbleMetrics, type ScaledBubbleMetrics } from "./bubbleMetrics";
+import {
+  getImageDisplaySize,
+  getScaledBubbleMetrics,
+  type ScaledBubbleMetrics,
+} from "./bubbleMetrics";
 import { BackgroundVideo } from "./BackgroundVideo";
 import { BotBanner } from "./BotBanner";
 import {
@@ -96,6 +100,34 @@ const VideoBubble: React.FC<{
     : "40px";
   // «Хвостик»: у Telegram острее (меньше радиус), чем прежний общий 14px
   const tailRadius = tg ? 8 : 14;
+  const hasImage = Boolean(message.imageUrl && message.imageAspectRatio);
+  const hasText = message.text.length > 0;
+  const imageSize = hasImage
+    ? getImageDisplaySize(message.imageAspectRatio!, metrics)
+    : null;
+  const bubbleCorners = {
+    borderTopLeftRadius: cornerRadius,
+    borderTopRightRadius: cornerRadius,
+    borderBottomLeftRadius: isRight ? cornerRadius : tailRadius,
+    borderBottomRightRadius: isRight ? tailRadius : cornerRadius,
+  };
+  const metaBlock = tg ? (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: metrics.bubbleFontSize * 0.14,
+        marginLeft: metrics.bubbleFontSize * 0.3,
+        fontSize: metrics.bubbleFontSize * 0.6,
+        color: metaColor,
+      }}
+    >
+      {MESSAGE_TIME}
+      {isRight ? (
+        <TelegramDoubleCheck color={tg.accent} size={metrics.bubbleFontSize * 0.62} />
+      ) : null}
+    </span>
+  ) : null;
 
   return (
     <div
@@ -160,52 +192,89 @@ const VideoBubble: React.FC<{
             {message.sender}
           </span>
         ) : null}
-        <div
-          style={{
-            background: bubble.background,
-            color: bubble.text,
-            fontSize: metrics.bubbleFontSize,
-            lineHeight: 1.35,
-            padding: `${metrics.bubblePaddingVertical}px ${metrics.bubblePaddingHorizontal}px`,
-            // Четыре отдельных угла вместо borderRadius+borderBottom*Radius —
-            // React ругается на смешивание shorthand и longhand в одном style
-            borderTopLeftRadius: cornerRadius,
-            borderTopRightRadius: cornerRadius,
-            borderBottomLeftRadius: isRight ? cornerRadius : tailRadius,
-            borderBottomRightRadius: isRight ? tailRadius : cornerRadius,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-            boxShadow: tg ? "0 2px 3px rgba(0,0,0,0.10)" : undefined,
-          }}
-        >
-          {/* Telegram: время + галочки прочтения float:right (см. ChatBubble.tsx) —
-              float не добавляет гарантированную лишнюю строку, поэтому оценка
-              высоты карточки (cardHeight.ts) остаётся валидной */}
-          {tg ? (
-            <span
+        {hasImage ? (
+          // Фото-сообщение: картинка растянута до вписанных в рамку
+          // (см. getImageDisplaySize) width/height БЕЗ отступов, подпись
+          // (если есть) — отдельным блоком с обычными полями под ней. Именно
+          // поэтому padding здесь 0, а не bubblePaddingVertical/Horizontal —
+          // в отличие от текстового пузыря ниже.
+          <div
+            style={{
+              position: "relative",
+              overflow: "hidden",
+              background: bubble.background,
+              boxShadow: tg ? "0 2px 3px rgba(0,0,0,0.10)" : undefined,
+              ...bubbleCorners,
+            }}
+          >
+            <Img
+              src={message.imageUrl!}
               style={{
-                float: "right",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: metrics.bubbleFontSize * 0.14,
-                marginLeft: metrics.bubbleFontSize * 0.3,
-                transform: `translateY(${metrics.bubbleFontSize * 0.28}px)`,
-                fontSize: metrics.bubbleFontSize * 0.6,
-                color: metaColor,
+                display: "block",
+                width: imageSize!.width,
+                height: imageSize!.height,
+                objectFit: "cover",
               }}
-            >
-              {MESSAGE_TIME}
-              {isRight ? (
-                // галочки прочтения — синим акцентом, не цветом времени (как в референсе)
-                <TelegramDoubleCheck
-                  color={tg.accent}
-                  size={metrics.bubbleFontSize * 0.62}
-                />
-              ) : null}
-            </span>
-          ) : null}
-          {message.text}
-        </div>
+            />
+            {hasText ? (
+              <div
+                style={{
+                  color: bubble.text,
+                  fontSize: metrics.bubbleFontSize,
+                  lineHeight: 1.35,
+                  padding: `${metrics.imageTextGap}px ${metrics.bubblePaddingHorizontal}px ${metrics.bubblePaddingVertical}px`,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                }}
+              >
+                {metaBlock ? (
+                  <span style={{ float: "right", transform: `translateY(${metrics.bubbleFontSize * 0.28}px)` }}>
+                    {metaBlock}
+                  </span>
+                ) : null}
+                {message.text}
+              </div>
+            ) : metaBlock ? (
+              // Без подписи — время/галочки поверх фото, как в реальных мессенджерах
+              <span
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  bottom: 8,
+                  padding: "2px 6px",
+                  borderRadius: 8,
+                  background: "rgba(0,0,0,0.35)",
+                }}
+              >
+                {metaBlock}
+              </span>
+            ) : null}
+          </div>
+        ) : (
+          <div
+            style={{
+              background: bubble.background,
+              color: bubble.text,
+              fontSize: metrics.bubbleFontSize,
+              lineHeight: 1.35,
+              padding: `${metrics.bubblePaddingVertical}px ${metrics.bubblePaddingHorizontal}px`,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              boxShadow: tg ? "0 2px 3px rgba(0,0,0,0.10)" : undefined,
+              ...bubbleCorners,
+            }}
+          >
+            {/* Telegram: время + галочки прочтения float:right (см. ChatBubble.tsx) —
+                float не добавляет гарантированную лишнюю строку, поэтому оценка
+                высоты карточки (cardHeight.ts) остаётся валидной */}
+            {metaBlock ? (
+              <span style={{ float: "right", transform: `translateY(${metrics.bubbleFontSize * 0.28}px)` }}>
+                {metaBlock}
+              </span>
+            ) : null}
+            {message.text}
+          </div>
+        )}
       </div>
     </div>
   );
