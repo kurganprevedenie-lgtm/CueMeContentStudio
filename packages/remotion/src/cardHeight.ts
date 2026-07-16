@@ -63,7 +63,9 @@ function computeCycles(
   headerHeight: number,
   maxContentHeight: number,
   maxCardHeight: number,
-  metrics: ScaledBubbleMetrics
+  metrics: ScaledBubbleMetrics,
+  /** false — тема без подписей имён (Telegram 1-на-1): не закладывать их высоту */
+  showLabels: boolean
 ): Cycle[] {
   const timingById = new Map(timings.map((t) => [t.id, t]));
   const shown = messages.filter((m) => timingById.has(m.id));
@@ -78,7 +80,7 @@ function computeCycles(
       current.messages.length > 0 && previousSenderInCycle === message.sender;
     const blockHeight = estimateMessageBlockHeight(
       message.text,
-      !sameSenderAsPrevious,
+      showLabels && !sameSenderAsPrevious,
       metrics
     );
     const gapIfNotFirst =
@@ -106,7 +108,7 @@ function computeCycles(
     // первое сообщение цикла всегда с подписью и без отступа перед собой
     const isFirstInCycle = current.messages.length === 0;
     const finalBlockHeight = isFirstInCycle
-      ? estimateMessageBlockHeight(message.text, true, metrics)
+      ? estimateMessageBlockHeight(message.text, showLabels, metrics)
       : blockHeight;
     const gap = isFirstInCycle
       ? 0
@@ -143,6 +145,8 @@ export interface CardStateParams {
   /** Целевая (максимальная) высота карточки внутри одного цикла */
   maxCardHeight: number;
   metrics: ScaledBubbleMetrics;
+  /** false — тема без подписей имён (Telegram): рендер и оценка высоты должны совпадать */
+  showLabels: boolean;
 }
 
 export interface CardState {
@@ -169,6 +173,7 @@ export function getCardState({
   headerHeight,
   maxCardHeight,
   metrics,
+  showLabels,
 }: CardStateParams): CardState {
   const maxContentHeight = Math.max(maxCardHeight - headerHeight, 0);
   const cycles = computeCycles(
@@ -178,7 +183,8 @@ export function getCardState({
     headerHeight,
     maxContentHeight,
     maxCardHeight,
-    metrics
+    metrics,
+    showLabels
   );
 
   // последний цикл, в котором уже есть хоть одно показанное сообщение

@@ -54,9 +54,12 @@ export function ChatBubble({ message, theme, onPlayAudio }: ChatBubbleProps) {
           isRight && "items-end"
         )}
       >
-        <span className="px-1 text-sm" style={{ color: theme.senderLabel }}>
-          {message.sender}
-        </span>
+        {/* Telegram 1-на-1 — без подписей имён над пузырями (как в референсе) */}
+        {tg ? null : (
+          <span className="px-1 text-sm" style={{ color: theme.senderLabel }}>
+            {message.sender}
+          </span>
+        )}
         <div
           className="px-4 py-2.5 text-base break-words whitespace-pre-wrap"
           style={{
@@ -83,7 +86,8 @@ export function ChatBubble({ message, theme, onPlayAudio }: ChatBubbleProps) {
               style={{ float: "right", color: metaColor }}
             >
               {MESSAGE_TIME}
-              {isRight ? <TelegramDoubleCheck color={metaColor} /> : null}
+              {/* галочки — синим акцентом, не цветом времени */}
+              {isRight ? <TelegramDoubleCheck color={tg.accent} /> : null}
             </span>
           ) : null}
           {message.text}

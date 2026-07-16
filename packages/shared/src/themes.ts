@@ -92,22 +92,23 @@ export const themes: Record<ThemeId, ChatTheme> = {
     // container.background — шапка/подложка карточки (белая), сами сообщения
     // рисуются поверх telegram.chatBackground (см. ChatVideo/ChatContainer)
     container: { background: "#ffffff", text: "#000000" },
-    senderLabel: "#3390ec",
+    senderLabel: "#3aa0e0",
     bubble: {
       // заметно круглее iMessage
       borderRadius: "20px",
+      // входящие — белые, исходящие — бледно-зелёные с ТЁМНЫМ текстом (как в
+      // Telegram iOS light из референса, НЕ синие)
       left: { background: "#ffffff", text: "#000000" },
-      right: {
-        background: "linear-gradient(135deg, #4aa3f0 0%, #3390ec 100%)",
-        text: "#ffffff",
-      },
+      right: { background: "#effdde", text: "#000000" },
     },
     telegram: {
-      headerStatus: "в сети",
-      chatBackground: "linear-gradient(180deg, #c6d3e1 0%, #d3dde8 100%)",
-      accent: "#3390ec",
-      incomingMeta: "#8a9aa6",
-      outgoingMeta: "#d6ecff",
+      headerStatus: "был(а) недавно",
+      // мятно-зелёные «обои» Telegram (сплошной цвет — паттерн-дудлы опущены)
+      chatBackground: "#d2ecd0",
+      // синий акцент: кнопка «Назад» в шапке и галочки прочтения ✓✓
+      accent: "#3aa0e0",
+      incomingMeta: "#9aa79a",
+      outgoingMeta: "#67a860",
     },
   },
 };

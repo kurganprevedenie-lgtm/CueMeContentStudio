@@ -47,17 +47,19 @@ export function getChatWindowCardLayout(
   };
 }
 
-const PhoneIcon: React.FC<{ color: string; size: number }> = ({ color, size }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden>
-    <path d="M6.6 10.8a15.2 15.2 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.2.4 2.4.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.3 21 3 13.7 3 4.9c0-.6.4-1 1-1h3.6c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.4 0 .8-.3 1z" />
-  </svg>
-);
-
-const MenuDotsIcon: React.FC<{ color: string; size: number }> = ({ color, size }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden>
-    <circle cx="12" cy="5" r="2" />
-    <circle cx="12" cy="12" r="2" />
-    <circle cx="12" cy="19" r="2" />
+const BackChevron: React.FC<{ color: string; size: number }> = ({ color, size }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="2.4"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <path d="M15 5 8 12l7 7" />
   </svg>
 );
 
@@ -101,7 +103,8 @@ const ChatHeader: React.FC<{
     </div>
   );
 
-  // Telegram iOS: аватар слева, имя + статус стопкой рядом, звонок и меню справа
+  // Telegram iOS (как в референсе): «‹ Назад» слева синим, имя + статус по
+  // центру, круглый аватар справа
   if (tg) {
     return (
       <div
@@ -110,20 +113,32 @@ const ChatHeader: React.FC<{
           flexShrink: 0,
           display: "flex",
           alignItems: "center",
-          gap: 20,
-          padding: "0 28px",
+          gap: 12,
+          padding: "0 22px",
           borderBottom: "1px solid rgba(0,0,0,0.08)",
         }}
       >
-        {avatar}
         <div
           style={{
             display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
+            alignItems: "center",
             gap: 2,
+            color: tg.accent,
+            fontSize: 26,
+            flexShrink: 0,
+          }}
+        >
+          <BackChevron color={tg.accent} size={34} />
+          Назад
+        </div>
+        <div
+          style={{
             flex: 1,
             minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 2,
           }}
         >
           <span
@@ -131,6 +146,7 @@ const ChatHeader: React.FC<{
               color: theme.container.text,
               fontSize: 30,
               fontWeight: 600,
+              maxWidth: "100%",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -138,14 +154,11 @@ const ChatHeader: React.FC<{
           >
             {name}
           </span>
-          <span style={{ color: "#8a96a2", fontSize: 22 }}>
+          <span style={{ color: "#8a96a2", fontSize: 21 }}>
             {tg.headerStatus}
           </span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 26 }}>
-          <PhoneIcon color={tg.accent} size={40} />
-          <MenuDotsIcon color={tg.accent} size={40} />
-        </div>
+        {avatar}
       </div>
     );
   }
@@ -211,6 +224,12 @@ export const ChatWindowCard: React.FC<{
   /** Текущая высота карточки на этот кадр — считается снаружи через currentCardHeight() */
   height: number;
   children: React.ReactNode;
+  /**
+   * Слой поверх области сообщений, обрезанный границами окна (overflow) — сюда
+   * ChatVideo кладёт push-уведомление CueMe, чтобы оно выезжало из верха
+   * диалогового окна (из-под шапки), а не из верха всего кадра.
+   */
+  overlay?: React.ReactNode;
 }> = ({
   theme,
   headerStyle,
@@ -221,6 +240,7 @@ export const ChatWindowCard: React.FC<{
   layoutSettings,
   height,
   children,
+  overlay,
 }) => {
   const layout = getChatWindowCardLayout(
     videoWidth,
@@ -254,6 +274,11 @@ export const ChatWindowCard: React.FC<{
       />
       <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
         {children}
+        {overlay ? (
+          <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+            {overlay}
+          </div>
+        ) : null}
       </div>
     </div>
   );

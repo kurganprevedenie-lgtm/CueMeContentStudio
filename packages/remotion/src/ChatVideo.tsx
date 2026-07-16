@@ -195,8 +195,9 @@ const VideoBubble: React.FC<{
             >
               {MESSAGE_TIME}
               {isRight ? (
+                // галочки прочтения — синим акцентом, не цветом времени (как в референсе)
                 <TelegramDoubleCheck
-                  color={metaColor}
+                  color={tg.accent}
                   size={metrics.bubbleFontSize * 0.62}
                 />
               ) : null}
@@ -343,6 +344,9 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
 
   const resolvedHeaderStyle = headerStyle ?? "compact";
   const resolvedLayout: LayoutSettings = layout ?? DEFAULT_LAYOUT_SETTINGS;
+  // Telegram — переписка 1-на-1 без подписей имён над пузырями; рендер и оценка
+  // высоты карточки должны согласованно это учитывать (см. cardHeight.ts)
+  const showLabels = !theme.telegram;
   const metrics = getScaledBubbleMetrics(
     resolvedLayout.messageFontScale,
     resolvedLayout.messageSpacingScale,
@@ -362,6 +366,7 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
     headerHeight: cardLayout.headerHeight,
     maxCardHeight: cardLayout.maxHeight,
     metrics,
+    showLabels,
   });
   const cardHeight = cardState.height;
   // показываем только сообщения текущего цикла — как только новое
@@ -390,6 +395,35 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
         videoHeight={VIDEO_HEIGHT}
         layoutSettings={resolvedLayout}
         height={cardHeight}
+        overlay={
+          // Push-уведомления CueMe — привязаны к сообщениям с isHintMoment (см.
+          // схему Message). Читаем из тех же messages/timings, отдельных props
+          // не заводим. Отдаём как overlay ВНУТРЬ окна чата — карточка обрезает
+          // его по своим границам (overflow), поэтому баннер выезжает из-под
+          // шапки, из верха диалогового окна, а не из верха всего кадра.
+          // Небольшой лид, чтобы подсказка предшествовала реплике.
+          <>
+            {timings.map((t: MessageTiming) => {
+              const message = messageById.get(t.id);
+              if (!message?.isHintMoment || !message.hintText?.trim())
+                return null;
+              const leadFrames = Math.round(0.4 * fps);
+              const from = Math.max(
+                Math.floor(t.startSec * fps) - leadFrames,
+                0
+              );
+              return (
+                <Sequence
+                  key={`hint-${t.id}`}
+                  from={from}
+                  durationInFrames={cueMeNotificationDurationInFrames(fps)}
+                >
+                  <CueMeNotification text={message.hintText} />
+                </Sequence>
+              );
+            })}
+          </>
+        }
       >
         <div
           style={{
@@ -422,7 +456,7 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
                 message={message}
                 theme={theme}
                 appearFrame={Math.floor(t.startSec * fps)}
-                showLabel={!sameSenderAsPrevious}
+                showLabel={showLabels && !sameSenderAsPrevious}
                 marginTop={
                   index === 0 || sameSenderAsPrevious
                     ? 0
@@ -472,26 +506,6 @@ export const ChatVideo: React.FC<ChatVideoProps> = ({
           theme={theme}
         />
       ) : null}
-      {/* Push-уведомления CueMe — привязаны к сообщениям с isHintMoment (см.
-          схему Message). Читаем из тех же messages/timings, что уже пришли в
-          composition, отдельных props не заводим. Рендерим последними — поверх
-          всего (уведомление приходит сверху экрана). Небольшой лид перед
-          сообщением, чтобы подсказка предшествовала реплике. */}
-      {timings.map((t: MessageTiming) => {
-        const message = messageById.get(t.id);
-        if (!message?.isHintMoment || !message.hintText?.trim()) return null;
-        const leadFrames = Math.round(0.4 * fps);
-        const from = Math.max(Math.floor(t.startSec * fps) - leadFrames, 0);
-        return (
-          <Sequence
-            key={`hint-${t.id}`}
-            from={from}
-            durationInFrames={cueMeNotificationDurationInFrames(fps)}
-          >
-            <CueMeNotification text={message.hintText} />
-          </Sequence>
-        );
-      })}
     </AbsoluteFill>
   );
 };
