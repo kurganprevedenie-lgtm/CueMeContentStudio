@@ -37,6 +37,8 @@ export function ChatBubble({ message, theme, onPlayAudio }: ChatBubbleProps) {
   const cornerRadius = theme.bubble.borderRadius;
   const tg = theme.telegram;
   const metaColor = tg ? (isRight ? tg.outgoingMeta : tg.incomingMeta) : "";
+  const hasImage = Boolean(message.imageUrl);
+  const hasText = message.text.length > 0;
 
   return (
     <div className={cn("flex items-end gap-3", isRight && "flex-row-reverse")}>
@@ -61,7 +63,10 @@ export function ChatBubble({ message, theme, onPlayAudio }: ChatBubbleProps) {
           </span>
         )}
         <div
-          className="px-4 py-2.5 text-base break-words whitespace-pre-wrap"
+          className={cn(
+            "overflow-hidden text-base break-words whitespace-pre-wrap",
+            !hasImage && "px-4 py-2.5"
+          )}
           style={{
             background: bubble.background,
             color: bubble.text,
@@ -76,21 +81,36 @@ export function ChatBubble({ message, theme, onPlayAudio }: ChatBubbleProps) {
             boxShadow: tg ? "0 1px 1px rgba(0,0,0,0.08)" : undefined,
           }}
         >
-          {/* Telegram: время + галочки прочтения float:right — если помещаются,
-              садятся в конец последней строки, иначе переносятся (как в реальном
-              Telegram); float не добавляет гарантированную лишнюю строку, поэтому
-              оценка высоты карточки (cardHeight.ts) остаётся валидной */}
-          {tg ? (
-            <span
-              className="ml-2 inline-flex translate-y-1 items-center gap-1 text-xs select-none"
-              style={{ float: "right", color: metaColor }}
-            >
-              {MESSAGE_TIME}
-              {/* галочки — синим акцентом, не цветом времени */}
-              {isRight ? <TelegramDoubleCheck color={tg.accent} /> : null}
-            </span>
+          {/* Превью в браузере — просто object-fit: contain в разумных рамках,
+              без точного расчёта размера как в Remotion-рендере (см.
+              packages/remotion/src/bubbleMetrics.ts) — здесь достаточно,
+              браузер сам вёрстывает окружающий flex-контейнер */}
+          {hasImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={message.imageUrl}
+              alt=""
+              className="block max-h-72 w-full object-cover"
+            />
           ) : null}
-          {message.text}
+          {hasText ? (
+            <div className={cn(hasImage && "px-4 py-2.5")}>
+              {/* Telegram: время + галочки прочтения float:right — если помещаются,
+                  садятся в конец последней строки, иначе переносятся (как в реальном
+                  Telegram) */}
+              {tg ? (
+                <span
+                  className="ml-2 inline-flex translate-y-1 items-center gap-1 text-xs select-none"
+                  style={{ float: "right", color: metaColor }}
+                >
+                  {MESSAGE_TIME}
+                  {/* галочки — синим акцентом, не цветом времени */}
+                  {isRight ? <TelegramDoubleCheck color={tg.accent} /> : null}
+                </span>
+              ) : null}
+              {message.text}
+            </div>
+          ) : null}
         </div>
       </div>
       {message.audioUrl && onPlayAudio ? (
