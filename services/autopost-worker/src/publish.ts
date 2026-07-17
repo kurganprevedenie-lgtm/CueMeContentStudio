@@ -202,8 +202,13 @@ export async function publishVideo(
 ): Promise<PublishResult[]> {
   const results: PublishResult[] = [];
   const caption = resolveCaption(video.name);
-  const needsLocalFile =
-    video.accountIds.tiktok.length > 0 || video.accountIds.youtube.length > 0;
+  // Видео, попавшие в очередь ДО появления мультиаккаунта (со старого кода),
+  // не имеют этого поля вообще — а не просто пустые массивы. Без дефолта
+  // здесь `.tiktok`/`.youtube` упадёт с TypeError на undefined и публикация
+  // будет проваливаться заново на каждый следующий слот расписания.
+  const tiktokIds = video.accountIds?.tiktok ?? [];
+  const youtubeIds = video.accountIds?.youtube ?? [];
+  const needsLocalFile = tiktokIds.length > 0 || youtubeIds.length > 0;
   let tempFilePath: string | null = null;
 
   try {
@@ -211,20 +216,14 @@ export async function publishVideo(
       tempFilePath = await downloadToTemp(video);
     }
     if (tempFilePath) {
-      for (let i = 0; i < video.accountIds.tiktok.length; i++) {
+      for (let i = 0; i < tiktokIds.length; i++) {
         if (i > 0) await sleep(INTER_ACCOUNT_PUBLISH_PAUSE_MS);
-        results.push(
-          await publishToTikTok(tempFilePath, video.accountIds.tiktok[i], caption)
-        );
+        results.push(await publishToTikTok(tempFilePath, tiktokIds[i], caption));
       }
-      for (let i = 0; i < video.accountIds.youtube.length; i++) {
+      for (let i = 0; i < youtubeIds.length; i++) {
         if (i > 0) await sleep(INTER_ACCOUNT_PUBLISH_PAUSE_MS);
         results.push(
-          await publishToYouTubePlatform(
-            tempFilePath,
-            video.accountIds.youtube[i],
-            caption
-          )
+          await publishToYouTubePlatform(tempFilePath, youtubeIds[i], caption)
         );
       }
     }
