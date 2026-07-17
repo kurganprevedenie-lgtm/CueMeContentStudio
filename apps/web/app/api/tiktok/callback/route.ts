@@ -8,6 +8,7 @@ import {
   exchangeTikTokCodeForTokens as exchangeCodeForTokens,
   listTikTokAccounts,
   saveTikTokAccount,
+  updateTikTokAccountTokens,
 } from "@cueme/publish-clients";
 
 import { STATE_COOKIE, VERIFIER_COOKIE } from "../auth/route";
@@ -80,10 +81,20 @@ export async function GET(request: Request) {
 
   try {
     const tokens = await exchangeCodeForTokens(code, codeVerifier);
-    const existingCount = (await listTikTokAccounts()).length;
+    const existing = await listTikTokAccounts();
+    // TikTok не даёт выбрать другой аккаунт при повторном заходе, если в
+    // браузере уже есть активная сессия — просто молча переавторизует тот же
+    // openId. Без этой проверки получился бы дубль записи на тот же физический
+    // аккаунт вместо ошибки/подсказки — сверяем openId и, если аккаунт уже
+    // подключён, обновляем его токены, а не создаём новую запись.
+    const already = existing.find((a) => a.tokens.openId === tokens.openId);
+    if (already) {
+      await updateTikTokAccountTokens(already.id, tokens);
+      return redirectHome(origin, { tiktok_connected: "1" });
+    }
     await saveTikTokAccount({
       id: randomUUID(),
-      label: `TikTok #${existingCount + 1}`,
+      label: `TikTok #${existing.length + 1}`,
       createdAt: new Date().toISOString(),
       tokens,
     });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckIcon, Loader2Icon, PencilIcon, XIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, Loader2Icon, PencilIcon, XIcon } from "lucide-react";
 
 import {
   AlertDialog,
@@ -55,6 +55,13 @@ function AccountRow({
   const [editing, setEditing] = useState(false);
   const [labelDraft, setLabelDraft] = useState(account.label);
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const copyId = async () => {
+    await navigator.clipboard.writeText(account.id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   const save = async () => {
     const trimmed = labelDraft.trim();
@@ -126,6 +133,23 @@ function AccountRow({
         ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          title="Скопировать id — понадобится для TIKTOK_ACCOUNT_IDS/YOUTUBE_ACCOUNT_IDS в .env автопостера"
+          onClick={copyId}
+        >
+          {copied ? (
+            <>
+              <CheckIcon className="size-4" /> Скопировано
+            </>
+          ) : (
+            <>
+              <CopyIcon className="size-4" /> ID
+            </>
+          )}
+        </Button>
         {account.expired ? (
           <a
             href={`/api/${account.platform}/auth`}

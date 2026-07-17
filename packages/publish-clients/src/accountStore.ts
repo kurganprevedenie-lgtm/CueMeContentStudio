@@ -110,6 +110,19 @@ export function createAccountStore<TTokens>(
     }
   }
 
+  function extractAccountIds(filenames: string[]): string[] {
+    const prefix = `${platform}-`;
+    // {platform}-tokens.enc — старое имя единственного файла на платформу, ДО
+    // мультиаккаунта — по префиксу/расширению оно неотличимо от нового
+    // {platform}-{id}.enc, поэтому исключаем его явно, чтобы не принять
+    // легаси-файл (структура — голые токены, без id/label/createdAt) за
+    // полноценный StoredAccount.
+    const legacyName = `${platform}-tokens.enc`;
+    return filenames
+      .filter((f) => f !== legacyName && f.startsWith(prefix) && f.endsWith(".enc"))
+      .map((f) => f.slice(prefix.length, -".enc".length));
+  }
+
   async function list(): Promise<StoredAccount<TTokens>[]> {
     let filenames: string[];
     try {
@@ -117,10 +130,7 @@ export function createAccountStore<TTokens>(
     } catch {
       filenames = [];
     }
-    const prefix = `${platform}-`;
-    const ids = filenames
-      .filter((f) => f.startsWith(prefix) && f.endsWith(".enc"))
-      .map((f) => f.slice(prefix.length, -".enc".length));
+    let ids = extractAccountIds(filenames);
 
     if (ids.length === 0) {
       await migrateLegacyIfNeeded<TTokens>(platform, legacyDefaultLabel);
@@ -129,16 +139,15 @@ export function createAccountStore<TTokens>(
       } catch {
         return [];
       }
-      ids.push(
-        ...filenames
-          .filter((f) => f.startsWith(prefix) && f.endsWith(".enc"))
-          .map((f) => f.slice(prefix.length, -".enc".length))
-      );
+      ids = extractAccountIds(filenames);
     }
 
     const accounts = await Promise.all(ids.map((id) => load(id)));
     return accounts
-      .filter((a): a is StoredAccount<TTokens> => a !== null)
+      .filter(
+        (a): a is StoredAccount<TTokens> =>
+          a !== null && typeof a.createdAt === "string"
+      )
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
