@@ -76,6 +76,16 @@ export const config = {
   tiktokAccountIds: envIdList("TIKTOK_ACCOUNT_IDS"),
   youtubeAccountIds: envIdList("YOUTUBE_ACCOUNT_IDS"),
 
+  // Прокси для исходящих запросов к TikTok/YouTube/Google Drive — на этом
+  // сервере прямой доступ нестабилен (throttling/DPI), а локальный VPN-клиент
+  // Happ уже поднят для cueme-bot (см. CueMe_server_commands.txt). undici
+  // (на нём построен fetch в Node) умеет только HTTP(S) CONNECT прокси, не
+  // SOCKS5 — используем HTTP-порт Happ (127.0.0.1:10809), не SOCKS5 (10808).
+  // gaxios (Google Drive API, googleapis) сам уважает HTTPS_PROXY без доп.
+  // кода; для TikTok/YouTube прокси включается явно через undici ProxyAgent
+  // (см. index.ts). Пусто = трафик идёт напрямую, без прокси.
+  proxyUrl: process.env.HTTPS_PROXY || undefined,
+
   // Заголовок/подпись — {filename} подставляется именем файла в Drive без расширения
   captionTemplate: process.env.WORKER_CAPTION_TEMPLATE ?? "{filename}",
   youtubePrivacyStatus: (process.env.YOUTUBE_PRIVACY_STATUS ?? "unlisted") as

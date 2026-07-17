@@ -1,3 +1,5 @@
+import { ProxyAgent, setGlobalDispatcher } from "undici";
+
 import { config } from "./config.js";
 import { initLogger, logger } from "./logger.js";
 import { listVideosInFolder, moveFileToPosted } from "./driveClient.js";
@@ -6,6 +8,15 @@ import { getDueSlotKey, loadSchedule } from "./schedule.js";
 import { loadState, saveState } from "./state.js";
 
 initLogger(config.logFilePath);
+
+// Прямой доступ с этого сервера к TikTok/YouTube нестабилен (throttling) —
+// если задан HTTPS_PROXY, все fetch-запросы процесса (TikTok/YouTube в
+// @cueme/publish-clients) идут через него. Ставится один раз глобально —
+// undici — это и есть реализация fetch в Node, отдельный dispatcher не нужен.
+if (config.proxyUrl) {
+  setGlobalDispatcher(new ProxyAgent(config.proxyUrl));
+  logger.info(`Исходящие запросы — через прокси ${config.proxyUrl}`);
+}
 
 /** Раз в ~20-30 сек достаточно для секундной точности слотов расписания — не нагружает "слабый сервер" */
 const SCHEDULE_CHECK_INTERVAL_MS = 20_000;
