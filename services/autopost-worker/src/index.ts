@@ -34,6 +34,11 @@ async function pollDrive(): Promise<void> {
         driveFileId: file.id,
         name: file.name,
         addedAt: new Date().toISOString(),
+        // проставляем аккаунты сейчас, не в момент публикации — см. QueuedVideo.accountIds
+        accountIds: {
+          tiktok: config.enableTikTok ? config.tiktokAccountIds : [],
+          youtube: config.enableYouTube ? config.youtubeAccountIds : [],
+        },
       });
       state.knownDriveFileIds.push(file.id);
       logger.info(`Drive: новое видео в очереди — "${file.name}" (${file.id})`);
@@ -87,10 +92,11 @@ async function checkSchedule(): Promise<void> {
     logger.info(`Расписание: слот ${slotKey} — публикую "${next.name}" (${next.driveFileId})`);
     const results = await publishVideo(next);
     for (const r of results) {
+      const label = r.accountId ? `${r.platform}:${r.accountId}` : r.platform;
       if (r.ok) {
-        logger.info(`  [${r.platform}] опубликовано — ${r.detail}`);
+        logger.info(`  [${label}] опубликовано — ${r.detail}`);
       } else {
-        logger.error(`  [${r.platform}] ошибка — ${r.detail}`);
+        logger.error(`  [${label}] ошибка — ${r.detail}`);
       }
     }
 
@@ -127,6 +133,16 @@ async function main(): Promise<void> {
         .filter(Boolean)
         .join(", ") || "нет ни одной (проверьте ENABLE_* в .env)"}`
   );
+  if (config.enableTikTok && config.tiktokAccountIds.length === 0) {
+    logger.error(
+      "ENABLE_TIKTOK=true, но TIKTOK_ACCOUNT_IDS пуст — публикация в TikTok будет пропускаться"
+    );
+  }
+  if (config.enableYouTube && config.youtubeAccountIds.length === 0) {
+    logger.error(
+      "ENABLE_YOUTUBE=true, но YOUTUBE_ACCOUNT_IDS пуст — публикация в YouTube будет пропускаться"
+    );
+  }
 
   await pollDrive();
   const driveInterval = setInterval(

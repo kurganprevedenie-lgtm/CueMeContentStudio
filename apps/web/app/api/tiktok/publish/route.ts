@@ -5,11 +5,25 @@ import { VideoTooLargeError, startTikTokPublish } from "@/lib/tiktokJobs";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const { jobId, caption } = (body ?? {}) as { jobId?: unknown; caption?: unknown };
+  const { jobId, accountIds, caption } = (body ?? {}) as {
+    jobId?: unknown;
+    accountIds?: unknown;
+    caption?: unknown;
+  };
 
   if (typeof jobId !== "string") {
     return NextResponse.json(
       { error: "Нужен jobId отрендеренного видео" },
+      { status: 400 }
+    );
+  }
+  if (
+    !Array.isArray(accountIds) ||
+    accountIds.length === 0 ||
+    !accountIds.every((id) => typeof id === "string")
+  ) {
+    return NextResponse.json(
+      { error: "Нужен хотя бы один accountId" },
       { status: 400 }
     );
   }
@@ -25,6 +39,7 @@ export async function POST(request: Request) {
   try {
     const job = await startTikTokPublish(
       renderJob.outputPath,
+      accountIds,
       typeof caption === "string" ? caption : undefined
     );
     return NextResponse.json(job);

@@ -1,22 +1,14 @@
 import { NextResponse } from "next/server";
 
-import {
-  clearTikTokTokens,
-  getTikTokPublishMode as getPublishMode,
-  isTikTokConnected,
-} from "@cueme/publish-clients";
+import { getTikTokPublishMode as getPublishMode } from "@cueme/publish-clients";
 
+/**
+ * Список подключённых аккаунтов и их отключение теперь через /api/accounts
+ * (мультиаккаунт) — этот роут остался только за режимом публикации
+ * (TIKTOK_PUBLISH_MODE), от него зависят формулировки/поля в UI
+ * (TikTokPublish.tsx), а сам режим общий для всех TikTok-аккаунтов, не
+ * привязан к конкретному.
+ */
 export async function GET() {
-  return NextResponse.json({
-    connected: await isTikTokConnected(),
-    // UI подстраивает формулировки: inbox — «придёт уведомлением»,
-    // direct — «появится в профиле с видимостью „Только я“»
-    mode: getPublishMode(),
-  });
-}
-
-/** Отключить TikTok — удаляет сохранённые токены */
-export async function DELETE() {
-  await clearTikTokTokens();
-  return NextResponse.json({ connected: false });
+  return NextResponse.json({ mode: getPublishMode() });
 }

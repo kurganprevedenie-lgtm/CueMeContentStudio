@@ -6,8 +6,9 @@ import type { YouTubePrivacyStatus } from "@cueme/publish-clients";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const { jobId, title, description, privacyStatus } = (body ?? {}) as {
+  const { jobId, accountIds, title, description, privacyStatus } = (body ?? {}) as {
     jobId?: unknown;
+    accountIds?: unknown;
     title?: unknown;
     description?: unknown;
     privacyStatus?: unknown;
@@ -16,6 +17,16 @@ export async function POST(request: Request) {
   if (typeof jobId !== "string") {
     return NextResponse.json(
       { error: "Нужен jobId отрендеренного видео" },
+      { status: 400 }
+    );
+  }
+  if (
+    !Array.isArray(accountIds) ||
+    accountIds.length === 0 ||
+    !accountIds.every((id) => typeof id === "string")
+  ) {
+    return NextResponse.json(
+      { error: "Нужен хотя бы один accountId" },
       { status: 400 }
     );
   }
@@ -36,6 +47,7 @@ export async function POST(request: Request) {
 
   const job = startYouTubePublish({
     filePath: renderJob.outputPath,
+    accountIds,
     title: title.trim(),
     description: typeof description === "string" ? description : "",
     privacyStatus: (privacyStatus as YouTubePrivacyStatus) ?? "unlisted",

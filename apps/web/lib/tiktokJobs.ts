@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { stat } from "node:fs/promises";
 
 import {
+  INTER_ACCOUNT_PUBLISH_PAUSE_MS,
   MAX_VIDEO_BYTES,
   TikTokApiError,
   TikTokNotConnectedError,
@@ -14,8 +15,9 @@ import {
 
 export type TikTokJobPhase = "uploading" | "polling" | "done" | "error";
 
-export interface TikTokPublishJob {
-  id: string;
+/** Статус публикации на ОДИН из выбранных аккаунтов — job теперь ведёт список таких состояний, не одно */
+export interface TikTokAccountPublishState {
+  accountId: string;
   phase: TikTokJobPhase;
   /** 0..1, актуален только пока phase === "uploading" */
   uploadProgress: number;
@@ -25,9 +27,14 @@ export interface TikTokPublishJob {
   failReason?: string;
   /** Наша собственная ошибка (не удалось подключиться/загрузить), не статус TikTok */
   error?: string;
-  /** "not_connected" — UI должен предложить переподключить TikTok, а не просто показать текст ошибки */
+  /** "not_connected" — UI должен предложить переподключить этот аккаунт, а не просто показать текст ошибки */
   errorKind?: "not_connected" | "api" | "other";
   lastPolledAt: number;
+}
+
+export interface TikTokPublishJob {
+  id: string;
+  accounts: TikTokAccountPublishState[];
 }
 
 // Тот же паттерн, что в renderJobs.ts/backgrounds.ts — globalThis, чтобы
@@ -45,13 +52,18 @@ export function getTikTokJob(id: string): TikTokPublishJob | undefined {
 
 export class VideoTooLargeError extends Error {}
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
- * Запускает публикацию черновика в фоне (как startRender в renderJobs.ts) —
- * само чтение/заливка файла может занять время, запрос от клиента не ждёт
- * этого, а получает id задачи и опрашивает статус отдельно.
+ * Запускает публикацию черновика в фоне (как startRender в renderJobs.ts) на
+ * все выбранные аккаунты — сама заливка может занять время, запрос от
+ * клиента не ждёт этого, а получает id задачи и опрашивает статус отдельно.
  */
 export async function startTikTokPublish(
   filePath: string,
+  accountIds: string[],
   caption?: string
 ): Promise<TikTokPublishJob> {
   const { size } = await stat(filePath);
@@ -63,48 +75,69 @@ export async function startTikTokPublish(
 
   const job: TikTokPublishJob = {
     id: randomUUID(),
-    phase: "uploading",
-    uploadProgress: 0,
-    lastPolledAt: 0,
+    accounts: accountIds.map((accountId) => ({
+      accountId,
+      phase: "uploading",
+      uploadProgress: 0,
+      lastPolledAt: 0,
+    })),
   };
   jobs.set(job.id, job);
 
-  void runUpload(job, filePath, size, caption);
+  void runSequential(job, filePath, size, caption);
 
   return job;
 }
 
-async function runUpload(
+/**
+ * Публикует на все выбранные аккаунты ПОСЛЕДОВАТЕЛЬНО (не Promise.all), с
+ * паузой INTER_ACCOUNT_PUBLISH_PAUSE_MS между ними — защита от анти-спам
+ * ограничений TikTok (spam_risk_too_many_pending_share и подобных) при
+ * частых заливках подряд с одного приложения.
+ */
+async function runSequential(
   job: TikTokPublishJob,
   filePath: string,
   size: number,
   caption?: string
 ) {
+  for (let i = 0; i < job.accounts.length; i++) {
+    if (i > 0) await sleep(INTER_ACCOUNT_PUBLISH_PAUSE_MS);
+    await runUploadForAccount(job.accounts[i], filePath, size, caption);
+  }
+}
+
+async function runUploadForAccount(
+  account: TikTokAccountPublishState,
+  filePath: string,
+  size: number,
+  caption?: string
+) {
   try {
-    const accessToken = await getValidAccessToken();
+    const accessToken = await getValidAccessToken(account.accountId);
     const { publishId, uploadUrl } = await initDraftUpload(accessToken, size, caption);
-    job.publishId = publishId;
+    account.publishId = publishId;
 
     await uploadVideoChunks(uploadUrl, filePath, size, (progress) => {
-      job.uploadProgress = progress.uploadedBytes / progress.totalBytes;
+      account.uploadProgress = progress.uploadedBytes / progress.totalBytes;
     });
 
-    job.phase = "polling";
-    job.lastPolledAt = Date.now();
+    account.phase = "polling";
+    account.lastPolledAt = Date.now();
     // первый статус сразу после загрузки — не ждём следующего опроса от клиента
     const { status, failReason } = await fetchPublishStatus(accessToken, publishId);
-    applyStatus(job, status, failReason);
+    applyStatus(account, status, failReason);
   } catch (e: unknown) {
-    job.phase = "error";
+    account.phase = "error";
     if (e instanceof TikTokNotConnectedError) {
-      job.errorKind = "not_connected";
-      job.error = e.message;
+      account.errorKind = "not_connected";
+      account.error = e.message;
     } else if (e instanceof TikTokApiError || e instanceof VideoTooLargeError) {
-      job.errorKind = "api";
-      job.error = e.message;
+      account.errorKind = "api";
+      account.error = e.message;
     } else {
-      job.errorKind = "other";
-      job.error = describeError(e);
+      account.errorKind = "other";
+      account.error = describeError(e);
     }
   }
 }
@@ -129,47 +162,51 @@ function describeError(e: unknown): string {
 }
 
 function applyStatus(
-  job: TikTokPublishJob,
+  account: TikTokAccountPublishState,
   status: TikTokPublishStatus,
   failReason?: string
 ) {
-  job.tiktokStatus = status;
+  account.tiktokStatus = status;
   if (status === "FAILED") {
-    job.phase = "error";
-    job.errorKind = "api";
-    job.failReason = failReason || "TikTok не уточнил причину ошибки";
+    account.phase = "error";
+    account.errorKind = "api";
+    account.failReason = failReason || "TikTok не уточнил причину ошибки";
   } else if (status === "PUBLISH_COMPLETE" || status === "SEND_TO_USER_INBOX") {
-    job.phase = "done";
+    account.phase = "done";
   }
 }
 
 const MIN_POLL_INTERVAL_MS = 2000;
 
 /**
- * Вызывается из GET-роута статуса — если с прошлого опроса TikTok прошло
- * достаточно времени, спрашиваем реальный статус ещё раз, иначе отдаём
- * закэшированный job как есть (чтобы частые запросы от клиента не долбили
- * TikTok API и не упирались в rate limit).
+ * Вызывается из GET-роута статуса — опрашивает TikTok заново для каждого
+ * аккаунта job'а, у которого пришло время (если с прошлого опроса прошло
+ * достаточно), иначе отдаёт закэшированное состояние — чтобы частые запросы
+ * от клиента не долбили TikTok API и не упирались в rate limit.
  */
 export async function refreshTikTokJobIfDue(
   job: TikTokPublishJob
 ): Promise<TikTokPublishJob> {
-  if (job.phase !== "polling") return job;
-  if (Date.now() - job.lastPolledAt < MIN_POLL_INTERVAL_MS) return job;
-  if (!job.publishId) return job;
+  await Promise.all(job.accounts.map((account) => refreshAccountIfDue(account)));
+  return job;
+}
 
-  job.lastPolledAt = Date.now();
+async function refreshAccountIfDue(account: TikTokAccountPublishState): Promise<void> {
+  if (account.phase !== "polling") return;
+  if (Date.now() - account.lastPolledAt < MIN_POLL_INTERVAL_MS) return;
+  if (!account.publishId) return;
+
+  account.lastPolledAt = Date.now();
   try {
-    const accessToken = await getValidAccessToken();
+    const accessToken = await getValidAccessToken(account.accountId);
     const { status, failReason } = await fetchPublishStatus(
       accessToken,
-      job.publishId
+      account.publishId
     );
-    applyStatus(job, status, failReason);
+    applyStatus(account, status, failReason);
   } catch {
     // сбой самого опроса статуса (сеть/токен) — не считаем это FAILED
     // публикации, просто отдаём предыдущее состояние, следующий опрос
     // от клиента попробует снова
   }
-  return job;
 }

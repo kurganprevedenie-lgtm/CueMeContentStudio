@@ -1,10 +1,13 @@
+import { randomUUID } from "node:crypto";
+
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import {
   TikTokApiError,
   exchangeTikTokCodeForTokens as exchangeCodeForTokens,
-  saveTikTokTokens,
+  listTikTokAccounts,
+  saveTikTokAccount,
 } from "@cueme/publish-clients";
 
 import { STATE_COOKIE, VERIFIER_COOKIE } from "../auth/route";
@@ -37,10 +40,13 @@ function redirectHome(
 }
 
 /**
- * Callback TikTok OAuth. Меняем authorization code на access/refresh
- * token и сохраняем их (см. tiktokTokenStore.ts), затем возвращаем
- * пользователя на главную с флагом успеха/ошибки в query — сама главная
- * страница по нему один раз показывает баннер и очищает URL.
+ * Callback TikTok OAuth. Меняем authorization code на access/refresh token и
+ * сохраняем их как НОВЫЙ подключённый аккаунт (см. accountStore.ts) — не
+ * перезаписываем существующие, так можно подключить сразу несколько TikTok-
+ * аккаунтов. Лейбл — автоимя "TikTok #N" по количеству уже подключённых,
+ * переименовать можно на /accounts. Возвращаем на главную с флагом
+ * успеха/ошибки в query — та же страница, откуда обычно и начинают
+ * подключение (из блока публикации или со страницы /accounts).
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -74,7 +80,13 @@ export async function GET(request: Request) {
 
   try {
     const tokens = await exchangeCodeForTokens(code, codeVerifier);
-    await saveTikTokTokens(tokens);
+    const existingCount = (await listTikTokAccounts()).length;
+    await saveTikTokAccount({
+      id: randomUUID(),
+      label: `TikTok #${existingCount + 1}`,
+      createdAt: new Date().toISOString(),
+      tokens,
+    });
     return redirectHome(origin, { tiktok_connected: "1" });
   } catch (e: unknown) {
     // Настоящую причину показываем как есть: exchangeCodeForTokens кладёт

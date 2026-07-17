@@ -3,9 +3,9 @@ import { stat } from "node:fs/promises";
 import { Readable } from "node:stream";
 
 import {
-  clearYouTubeTokens,
-  loadYouTubeTokens,
-  saveYouTubeTokens,
+  loadYouTubeAccount,
+  removeYouTubeAccount,
+  updateYouTubeAccountTokens,
   type YouTubeTokens,
 } from "./youtubeTokenStore";
 
@@ -159,36 +159,39 @@ async function refreshTokens(refreshToken: string): Promise<YouTubeTokens> {
 /** Обновляем заранее, не дожидаясь 401 — тот же запас, что и для TikTok */
 const ACCESS_TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000;
 
-export async function getValidAccessToken(): Promise<string> {
-  const tokens = await loadYouTubeTokens();
-  if (!tokens) {
-    throw new YouTubeNotConnectedError("YouTube не подключён");
+/**
+ * accountId — id конкретного подключённого YouTube-аккаунта (см.
+ * packages/publish-clients/src/accountStore.ts, StoredAccount.id) — тот же
+ * принцип, что и у getValidAccessToken в tiktokApi.ts.
+ */
+export async function getValidAccessToken(accountId: string): Promise<string> {
+  const account = await loadYouTubeAccount(accountId);
+  if (!account) {
+    throw new YouTubeNotConnectedError("YouTube-аккаунт не найден — переподключите его");
   }
+  const tokens = account.tokens;
   if (Date.now() < tokens.accessExpiresAt - ACCESS_TOKEN_REFRESH_MARGIN_MS) {
     return tokens.accessToken;
   }
   try {
     const refreshed = await refreshTokens(tokens.refreshToken);
-    await saveYouTubeTokens(refreshed);
+    await updateYouTubeAccountTokens(accountId, refreshed);
     return refreshed.accessToken;
   } catch (e: unknown) {
     // refresh_token отозван/протух (например, тестовый режим Google
     // consent screen истекает раз в 7 дней) — просим переподключиться,
     // а не показываем generic-ошибку API
-    await clearYouTubeTokens();
+    await removeYouTubeAccount(accountId);
     throw new YouTubeNotConnectedError(
       e instanceof Error ? e.message : "Подключение к YouTube истекло — подключите аккаунт заново"
     );
   }
 }
 
-export async function isYouTubeConnected(): Promise<boolean> {
-  return (await loadYouTubeTokens()) !== null;
-}
-
 export type YouTubePrivacyStatus = "public" | "unlisted" | "private";
 
 export interface UploadYouTubeInput {
+  accountId: string;
   filePath: string;
   title: string;
   description: string;
@@ -207,10 +210,10 @@ export interface UploadProgress {
  * без нужды резать на чанки, в отличие от TikTok Content Posting API).
  */
 export async function uploadVideo(
-  { filePath, title, description, privacyStatus }: UploadYouTubeInput,
+  { accountId, filePath, title, description, privacyStatus }: UploadYouTubeInput,
   onProgress?: (progress: UploadProgress) => void
 ): Promise<{ videoId: string; url: string }> {
-  const accessToken = await getValidAccessToken();
+  const accessToken = await getValidAccessToken(accountId);
   const { size } = await stat(filePath);
 
   const initRes = await fetchWithRetry(UPLOAD_URL, {

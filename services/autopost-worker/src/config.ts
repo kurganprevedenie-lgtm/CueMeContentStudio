@@ -35,6 +35,16 @@ function envPath(name: string, fallback: string): string {
   return path.isAbsolute(value) ? value : path.join(ROOT_DIR, value);
 }
 
+/** Список id через запятую — id аккаунтов берутся со страницы /accounts в Content Studio */
+function envIdList(name: string): string[] {
+  const raw = process.env[name];
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
+
 export const config = {
   rootDir: ROOT_DIR,
 
@@ -56,6 +66,15 @@ export const config = {
   enableTikTok: envBool("ENABLE_TIKTOK", true),
   enableYouTube: envBool("ENABLE_YOUTUBE", true),
   enableInstagram: envBool("ENABLE_INSTAGRAM", true),
+
+  // Мультиаккаунт: у воркера нет своего UI для выбора аккаунтов на каждый
+  // пост (он сам находит видео в Drive, спрашивать пользователя не у кого),
+  // поэтому список id — статический, из .env. Каждое видео из Drive уйдёт
+  // на ВСЕ перечисленные здесь аккаунты. id — со страницы /accounts в
+  // Content Studio (там же лежат сами зашифрованные токены — .data/{id}.enc
+  // нужно скопировать на сервер воркера, см. AUTOPOST_WORKER_SETUP.md).
+  tiktokAccountIds: envIdList("TIKTOK_ACCOUNT_IDS"),
+  youtubeAccountIds: envIdList("YOUTUBE_ACCOUNT_IDS"),
 
   // Заголовок/подпись — {filename} подставляется именем файла в Drive без расширения
   captionTemplate: process.env.WORKER_CAPTION_TEMPLATE ?? "{filename}",

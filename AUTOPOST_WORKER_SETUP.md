@@ -62,14 +62,16 @@ pnpm install --filter "autopost-worker..."
 
 ## Шаг 5 — перенести уже подключённые токены
 
-На машине, где ты подключал TikTok/YouTube/Instagram в Content Studio (`apps/web/.data/*.enc`):
+TikTok и YouTube теперь поддерживают несколько подключённых аккаунтов одновременно (страница **«Подключённые аккаунты»** → `/accounts` в Content Studio) — у каждого аккаунта свой файл токена: `tiktok-{id}.enc`, `youtube-{id}.enc`, где `{id}` виден на странице `/accounts`. Если ещё остались старые файлы `tiktok-tokens.enc`/`youtube-tokens.enc` (с версии до мультиаккаунта) — не страшно, при первом запуске воркер (точнее, `packages/publish-clients`) сам смигрирует их в новый формат и переименует старый файл в `.migrated`.
+
+На машине, где ты подключал TikTok/YouTube/Instagram в Content Studio, скопируй **все** `.enc`-файлы аккаунтов, которые должен использовать воркер (можно не все — см. шаг 6, `TIKTOK_ACCOUNT_IDS`/`YOUTUBE_ACCOUNT_IDS`):
 
 ```bash
-scp apps/web/.data/tiktok-tokens.enc apps/web/.data/youtube-tokens.enc apps/web/.data/instagram-tokens.enc \
+scp apps/web/.data/tiktok-*.enc apps/web/.data/youtube-*.enc apps/web/.data/instagram-tokens.enc \
   nikola@сервер:~/CueMeContentStudio/services/autopost-worker/.data/
 ```
 
-Если какая-то из площадок ещё не подключена — просто не копируй соответствующий файл и выключи её через `ENABLE_*=false` в `.env` (шаг 6).
+Если какая-то из площадок ещё не подключена — просто не копируй соответствующие файлы и выключи её через `ENABLE_*=false` в `.env` (шаг 6).
 
 ## Шаг 6 — заполнить `.env`
 
@@ -82,6 +84,7 @@ cp .env.example .env
 - `GDRIVE_FOLDER_ID` — ID папки из шага 3
 - `GDRIVE_SERVICE_ACCOUNT_KEY_PATH` — оставить `service-account.json`, сам файл положить рядом (`services/autopost-worker/service-account.json`, он в `.gitignore`)
 - `TOKEN_ENCRYPTION_KEY`, `TIKTOK_*`, `GOOGLE_OAUTH_*`, `FACEBOOK_*` — **скопировать один в один** из `.env` Content Studio (тот же ключ шифрования, иначе перенесённые `*.enc` не расшифруются)
+- `TIKTOK_ACCOUNT_IDS`, `YOUTUBE_ACCOUNT_IDS` — список id аккаунтов через запятую (без пробелов), на которые воркер будет постить **каждое** видео из Drive. У воркера нет своего UI, поэтому выбор аккаунтов — не на каждый пост, а один статический список. id берутся со страницы `/accounts` в Content Studio (там же видно, каким `.enc`-файлам они соответствуют — см. шаг 5). Если платформа включена (`ENABLE_TIKTOK=true`), а список пуст — воркер запустится, но напишет в лог ошибку и будет пропускать эту площадку при каждой публикации.
 
 ## Шаг 7 — расписание
 

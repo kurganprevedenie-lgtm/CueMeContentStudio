@@ -1,10 +1,13 @@
+import { randomUUID } from "node:crypto";
+
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import {
   YouTubeApiError,
   exchangeYouTubeCodeForTokens as exchangeCodeForTokens,
-  saveYouTubeTokens,
+  listYouTubeAccounts,
+  saveYouTubeAccount,
 } from "@cueme/publish-clients";
 
 import { STATE_COOKIE } from "../auth/route";
@@ -35,9 +38,11 @@ function redirectHome(origin: string, params: Record<string, string>) {
 }
 
 /**
- * Callback Google OAuth. Меняем authorization code на access/refresh
- * token и сохраняем их (см. youtubeTokenStore.ts), затем возвращаем
- * пользователя на главную с флагом успеха/ошибки в query.
+ * Callback Google OAuth. Меняем authorization code на access/refresh token и
+ * сохраняем их как НОВЫЙ подключённый аккаунт (см. accountStore.ts) — не
+ * перезаписываем существующие, так можно подключить сразу несколько YouTube-
+ * аккаунтов. Лейбл — автоимя "YouTube #N", переименовать можно на /accounts.
+ * Возвращаем пользователя на главную с флагом успеха/ошибки в query.
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -63,7 +68,13 @@ export async function GET(request: Request) {
 
   try {
     const tokens = await exchangeCodeForTokens(code);
-    await saveYouTubeTokens(tokens);
+    const existingCount = (await listYouTubeAccounts()).length;
+    await saveYouTubeAccount({
+      id: randomUUID(),
+      label: `YouTube #${existingCount + 1}`,
+      createdAt: new Date().toISOString(),
+      tokens,
+    });
     return redirectHome(origin, { youtube_connected: "1" });
   } catch (e: unknown) {
     const message =

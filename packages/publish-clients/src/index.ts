@@ -6,7 +6,6 @@ export {
   getPublishMode as getTikTokPublishMode,
   getValidAccessToken as getValidTikTokAccessToken,
   initDraftUpload,
-  isTikTokConnected,
   planChunks,
   uploadVideoChunks,
   MAX_VIDEO_BYTES,
@@ -18,9 +17,12 @@ export {
   type UploadProgress as TikTokUploadProgress,
 } from "./tiktokApi";
 export {
-  clearTikTokTokens,
-  loadTikTokTokens,
-  saveTikTokTokens,
+  listTikTokAccounts,
+  loadTikTokAccount,
+  removeTikTokAccount,
+  saveTikTokAccount,
+  updateTikTokAccountTokens,
+  type TikTokAccount,
   type TikTokTokens,
 } from "./tiktokTokenStore";
 
@@ -28,7 +30,6 @@ export {
   buildAuthorizeUrl as buildYouTubeAuthorizeUrl,
   exchangeCodeForTokens as exchangeYouTubeCodeForTokens,
   getValidAccessToken as getValidYouTubeAccessToken,
-  isYouTubeConnected,
   uploadVideo as uploadToYouTube,
   YouTubeApiError,
   YouTubeNotConnectedError,
@@ -37,9 +38,12 @@ export {
   type YouTubePrivacyStatus,
 } from "./youtubeApi";
 export {
-  clearYouTubeTokens,
-  loadYouTubeTokens,
-  saveYouTubeTokens,
+  listYouTubeAccounts,
+  loadYouTubeAccount,
+  removeYouTubeAccount,
+  saveYouTubeAccount,
+  updateYouTubeAccountTokens,
+  type YouTubeAccount,
   type YouTubeTokens,
 } from "./youtubeTokenStore";
 
@@ -62,5 +66,7 @@ export {
   saveInstagramTokens,
   type InstagramTokens,
 } from "./instagramTokenStore";
+
+export { INTER_ACCOUNT_PUBLISH_PAUSE_MS, type StoredAccount } from "./accountStore";
 
 export { decrypt, encrypt } from "./tokenCrypto";

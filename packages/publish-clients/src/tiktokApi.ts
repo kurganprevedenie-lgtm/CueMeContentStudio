@@ -2,9 +2,9 @@ import { createHash, randomBytes } from "node:crypto";
 import { open } from "node:fs/promises";
 
 import {
-  clearTikTokTokens,
-  loadTikTokTokens,
-  saveTikTokTokens,
+  loadTikTokAccount,
+  removeTikTokAccount,
+  updateTikTokAccountTokens,
   type TikTokTokens,
 } from "./tiktokTokenStore";
 
@@ -110,6 +110,13 @@ const MAX_RATE_LIMIT_RETRIES = 4;
 const RATE_LIMIT_BASE_DELAY_MS = 2000;
 const RATE_LIMIT_MAX_DELAY_MS = 20000;
 
+// Таймаут — не обязательно "TikTok недоступен", часто это разовая просадка
+// VPN/сети на пару секунд. Раньше таймаут падал сразу с одной попытки —
+// один короткий сбой сети роняет всю публикацию. Ретраим так же, как 429
+// (тот же счётчик/бэкофф) — PUT чанка идемпотентен по Content-Range, повторная
+// отправка того же куска безопасна.
+const MAX_TIMEOUT_RETRIES = 3;
+
 // Без явного таймаута зависшее соединение (например, тихая блокировка на
 // уровне сети — TikTok Content Posting API недоступен для части регионов)
 // висит 5 минут (дефолтный headers timeout Node/undici) прежде чем упасть с
@@ -136,8 +143,16 @@ async function fetchWithRetry(
     res = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
   } catch (e: unknown) {
     if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
+      if (attempt < MAX_TIMEOUT_RETRIES) {
+        const waitMs = Math.min(
+          RATE_LIMIT_BASE_DELAY_MS * 2 ** attempt,
+          RATE_LIMIT_MAX_DELAY_MS
+        );
+        await sleep(waitMs);
+        return fetchWithRetry(url, init, attempt + 1, timeoutMs);
+      }
       throw new TikTokApiError(
-        `TikTok не ответил за ${Math.round(timeoutMs / 1000)} секунд — проверьте сеть/VPN`
+        `TikTok не ответил за ${Math.round(timeoutMs / 1000)} секунд (после ${MAX_TIMEOUT_RETRIES + 1} попыток) — проверьте сеть/VPN`
       );
     }
     throw e;
@@ -240,11 +255,19 @@ function hasRequiredScope(grantedScope: string): boolean {
     .includes(getScope());
 }
 
-export async function getValidAccessToken(): Promise<string> {
-  const tokens = await loadTikTokTokens();
-  if (!tokens) {
-    throw new TikTokNotConnectedError("TikTok не подключён");
+/**
+ * accountId — id конкретного подключённого TikTok-аккаунта (см.
+ * packages/publish-clients/src/accountStore.ts, StoredAccount.id). Один
+ * пользователь может подключить несколько TikTok-аккаунтов одновременно —
+ * каждый хранится в своём файле, поэтому все операции с токенами теперь
+ * идут через конкретный accountId, а не "единственный" неявный аккаунт.
+ */
+export async function getValidAccessToken(accountId: string): Promise<string> {
+  const account = await loadTikTokAccount(accountId);
+  if (!account) {
+    throw new TikTokNotConnectedError("TikTok-аккаунт не найден — переподключите его");
   }
+  const tokens = account.tokens;
   // сменился TIKTOK_PUBLISH_MODE — у сохранённого токена другое разрешение,
   // TikTok ответил бы invalid scope; понятнее сразу попросить переподключиться
   if (!hasRequiredScope(tokens.scope)) {
@@ -256,22 +279,14 @@ export async function getValidAccessToken(): Promise<string> {
     return tokens.accessToken;
   }
   if (Date.now() >= tokens.refreshExpiresAt) {
-    await clearTikTokTokens();
+    await removeTikTokAccount(accountId);
     throw new TikTokNotConnectedError(
       "Подключение к TikTok истекло — подключите аккаунт заново"
     );
   }
   const refreshed = await refreshTokens(tokens.refreshToken);
-  await saveTikTokTokens(refreshed);
+  await updateTikTokAccountTokens(accountId, refreshed);
   return refreshed.accessToken;
-}
-
-export async function isTikTokConnected(): Promise<boolean> {
-  const tokens = await loadTikTokTokens();
-  if (!tokens) return false;
-  // токен с другим scope считаем неподключённым — UI сразу покажет
-  // кнопку «Подключить TikTok» вместо ошибки при попытке загрузки
-  return Date.now() < tokens.refreshExpiresAt && hasRequiredScope(tokens.scope);
 }
 
 // --- Content Posting API: инициализация + chunked upload + статус ---

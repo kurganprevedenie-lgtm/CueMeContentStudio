@@ -2,6 +2,7 @@ import { rm, stat } from "node:fs/promises";
 import path from "node:path";
 
 import {
+  INTER_ACCOUNT_PUBLISH_PAUSE_MS,
   MAX_VIDEO_BYTES,
   createReelsContainer,
   fetchContainerStatus,
@@ -10,6 +11,7 @@ import {
   getTikTokPublishMode,
   getValidInstagramAccount,
   getValidTikTokAccessToken,
+  getValidYouTubeAccessToken,
   initDraftUpload,
   publishContainer,
   uploadToYouTube,
@@ -38,6 +40,8 @@ async function downloadToTemp(video: QueuedVideo): Promise<string> {
 
 export interface PublishResult {
   platform: "tiktok" | "youtube" | "instagram";
+  /** Мультиаккаунт (tiktok/youtube) — на какой именно из выбранных аккаунтов ушла эта попытка */
+  accountId?: string;
   ok: boolean;
   detail: string;
 }
@@ -47,6 +51,7 @@ const TIKTOK_MAX_POLLS = 30;
 
 async function publishToTikTok(
   filePath: string,
+  accountId: string,
   caption: string
 ): Promise<PublishResult> {
   try {
@@ -56,7 +61,7 @@ async function publishToTikTok(
         `видео больше лимита TikTok (${Math.round(MAX_VIDEO_BYTES / 1024 / 1024 / 1024)}GB)`
       );
     }
-    const accessToken = await getValidTikTokAccessToken();
+    const accessToken = await getValidTikTokAccessToken(accountId);
     const mode = getTikTokPublishMode();
     const { publishId, uploadUrl } = await initDraftUpload(
       accessToken,
@@ -75,11 +80,17 @@ async function publishToTikTok(
         throw new Error(failReason ?? "TikTok сообщил об ошибке без деталей");
       }
       if (status === "PUBLISH_COMPLETE" || status === "SEND_TO_USER_INBOX") {
-        return { platform: "tiktok", ok: true, detail: `статус: ${status}` };
+        return {
+          platform: "tiktok",
+          accountId,
+          ok: true,
+          detail: `статус: ${status}`,
+        };
       }
     }
     return {
       platform: "tiktok",
+      accountId,
       ok: true,
       detail:
         "видео загружено, но финальный статус не дождались за отведённое время — проверьте в приложении TikTok",
@@ -87,6 +98,7 @@ async function publishToTikTok(
   } catch (e: unknown) {
     return {
       platform: "tiktok",
+      accountId,
       ok: false,
       detail: e instanceof Error ? e.message : String(e),
     };
@@ -95,20 +107,23 @@ async function publishToTikTok(
 
 async function publishToYouTubePlatform(
   filePath: string,
+  accountId: string,
   caption: string
 ): Promise<PublishResult> {
   try {
     // YouTube: заголовок ограничен 100 символами, описание — без ограничения шаблона
     const { url } = await uploadToYouTube({
+      accountId,
       filePath,
       title: caption.slice(0, 100),
       description: caption,
       privacyStatus: config.youtubePrivacyStatus,
     });
-    return { platform: "youtube", ok: true, detail: url };
+    return { platform: "youtube", accountId, ok: true, detail: url };
   } catch (e: unknown) {
     return {
       platform: "youtube",
+      accountId,
       ok: false,
       detail: e instanceof Error ? e.message : String(e),
     };
@@ -167,33 +182,51 @@ async function publishToInstagramPlatform(
 
 /**
  * Публикует одно видео на все включённые площадки (ENABLE_TIKTOK/YOUTUBE/
- * INSTAGRAM в .env). Ошибка одной площадки не останавливает остальные —
- * каждая платформа возвращает свой PublishResult, вызывающий код (index.ts)
- * логирует все и решает, считать ли видео обработанным.
+ * INSTAGRAM в .env) — мультиаккаунт: на каждой из TikTok/YouTube проходит
+ * ПОСЛЕДОВАТЕЛЬНО (не параллельно) по всем video.accountIds.{tiktok,youtube}
+ * (проставлены при добавлении в очередь, см. index.ts/pollDrive), с паузой
+ * INTER_ACCOUNT_PUBLISH_PAUSE_MS между аккаунтами одной платформы — та же
+ * защита от анти-спам ограничений, что и в apps/web (lib/tiktokJobs.ts).
+ * Ошибка одного аккаунта не останавливает остальные — каждый аккаунт
+ * возвращает свой PublishResult, вызывающий код (index.ts) логирует все и
+ * решает, считать ли видео обработанным. Instagram — не мультиаккаунт (не
+ * трогаем эту интеграцию), публикуется как раньше, одним вызовом.
  *
  * Файл скачивается на диск только если нужен TikTok/YouTube (обеим нужны
  * реальные байты) — Instagram использует прямую ссылку на файл в Drive (см.
  * driveClient.ts), локальная копия ему не нужна. Временный файл удаляется
- * сразу после использования, не после публикации во все три — не держим
- * видео на диске дольше, чем требуется.
+ * сразу после использования всеми аккаунтами, не раньше.
  */
 export async function publishVideo(
   video: QueuedVideo
 ): Promise<PublishResult[]> {
   const results: PublishResult[] = [];
   const caption = resolveCaption(video.name);
-  const needsLocalFile = config.enableTikTok || config.enableYouTube;
+  const needsLocalFile =
+    video.accountIds.tiktok.length > 0 || video.accountIds.youtube.length > 0;
   let tempFilePath: string | null = null;
 
   try {
     if (needsLocalFile) {
       tempFilePath = await downloadToTemp(video);
     }
-    if (config.enableTikTok && tempFilePath) {
-      results.push(await publishToTikTok(tempFilePath, caption));
-    }
-    if (config.enableYouTube && tempFilePath) {
-      results.push(await publishToYouTubePlatform(tempFilePath, caption));
+    if (tempFilePath) {
+      for (let i = 0; i < video.accountIds.tiktok.length; i++) {
+        if (i > 0) await sleep(INTER_ACCOUNT_PUBLISH_PAUSE_MS);
+        results.push(
+          await publishToTikTok(tempFilePath, video.accountIds.tiktok[i], caption)
+        );
+      }
+      for (let i = 0; i < video.accountIds.youtube.length; i++) {
+        if (i > 0) await sleep(INTER_ACCOUNT_PUBLISH_PAUSE_MS);
+        results.push(
+          await publishToYouTubePlatform(
+            tempFilePath,
+            video.accountIds.youtube[i],
+            caption
+          )
+        );
+      }
     }
     if (config.enableInstagram) {
       results.push(await publishToInstagramPlatform(video.driveFileId, caption));

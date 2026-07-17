@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { UsersIcon } from "lucide-react";
+
 import { BackgroundVideoSelector } from "@/components/chat/BackgroundVideoSelector";
 import { BotBannerPanel } from "@/components/chat/BotBannerPanel";
 import { ChatContainer } from "@/components/chat/ChatContainer";
@@ -13,7 +16,15 @@ export default function Home() {
     <main className="mx-auto grid w-full max-w-5xl flex-1 items-start gap-8 p-6 md:grid-cols-[1fr_minmax(0,24rem)]">
       <section className="flex flex-col gap-6">
         <header className="space-y-1">
-          <h1 className="text-2xl font-semibold">CueMe Content Studio</h1>
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="text-2xl font-semibold">CueMe Content Studio</h1>
+            <Link
+              href="/accounts"
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:underline"
+            >
+              <UsersIcon className="size-4" /> Аккаунты
+            </Link>
+          </div>
           <p className="text-sm text-muted-foreground">
             Собери диалог — превью справа обновляется сразу
           </p>

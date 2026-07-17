@@ -7,6 +7,14 @@ export interface QueuedVideo {
   driveFileId: string;
   name: string;
   addedAt: string;
+  /**
+   * На какие аккаунты публиковать это видео — проставляется ПРИ ДОБАВЛЕНИИ
+   * в очередь (см. pollDrive() в index.ts) из config.tiktokAccountIds/
+   * youtubeAccountIds, а не читается заново из конфига в момент публикации:
+   * так видео, уже стоящее в очереди, не "уедет" на другой набор аккаунтов,
+   * если конфиг поменяют, пока оно ещё ждёт своего слота.
+   */
+  accountIds: { tiktok: string[]; youtube: string[] };
 }
 
 export interface WorkerState {
