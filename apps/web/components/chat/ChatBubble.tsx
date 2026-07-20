@@ -86,11 +86,20 @@ export function ChatBubble({ message, theme, onPlayAudio }: ChatBubbleProps) {
               packages/remotion/src/bubbleMetrics.ts) — здесь достаточно,
               браузер сам вёрстывает окружающий flex-контейнер */}
           {hasImage ? (
+            // width/height: auto + max-width/max-height — браузер сам вписывает
+            // РЕАЛЬНЫЕ пропорции фото в рамку (как object-fit: contain для
+            // replaced-элемента), без искажений. w-full здесь нельзя: пузырь —
+            // flex-item с shrink-to-fit шириной (см. родительский div ниже,
+            // max-w-[78%]), а width:100% у картинки внутри такого контейнера
+            // разворачивается в «залить всю доступную ширину колонки» —
+            // пузырь с фото становился шире соседних текстовых и визуально
+            // «съезжал» относительно остальной переписки
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={message.imageUrl}
               alt=""
-              className="block max-h-72 w-full object-cover"
+              className="block h-auto w-auto"
+              style={{ maxWidth: 260, maxHeight: 260 }}
             />
           ) : null}
           {hasText ? (

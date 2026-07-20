@@ -200,6 +200,11 @@ const VideoBubble: React.FC<{
           // в отличие от текстового пузыря ниже.
           <div
             style={{
+              // Явная ширина, а не расчёт на shrink-to-fit флекс-родителя —
+              // тот же сдвиг вбок, что чинили в web-превью (ChatBubble.tsx),
+              // здесь мог бы воспроизвестись, если бы Chromium-рендер
+              // Remotion разрешил ширину иначе, чем браузер превью
+              width: imageSize!.width,
               position: "relative",
               overflow: "hidden",
               background: bubble.background,
